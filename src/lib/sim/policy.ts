@@ -82,8 +82,11 @@ export function validateAction(
       if (state.runtime[p].breaker.state === "closed") warnings.push("Breaker is currently closed; this records a decision only.");
       break;
     }
-    case "escalate_to_partner":
+    case "escalate_to_partner": {
+      const already = incident.recommendations.some((r) => r.actionId === "escalate_to_partner" && r.targetEntityId === target && (r.executedAt !== null || (r.approval === "approved" && r.scheduledExecutionAt !== null)));
+      if (already) return reject(`${ENTITY_PROFILES[target as Exclude<EntityId, "retail">].name} has already been escalated for ${incident.id}; remediation is in progress.`);
       break;
+    }
     case "scale_gateway_capacity": {
       const capNow = state.config.gatewayCapacitySlots + c.extraCapacitySlots;
       if (capNow >= state.config.actions.maxCapacitySlots) return reject(`Gateway already at the bounded maximum of ${state.config.actions.maxCapacitySlots} slots.`);

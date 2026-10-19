@@ -50,8 +50,6 @@ export interface GoldenScenario {
   expectations: GoldenExpectations;
   /** TEST-ONLY mocked model output (clearly labelled; never shown as a real LLM response). */
   mockDiagnosis?: Diagnosis;
-  /** Paired-run operator script: approve these action IDs if proposed (simulated operator). */
-  forcedApprovals?: { actionId: string; targetEntityId: EntityId | null }[];
   expectedTestOutcome: string;
 }
 
@@ -506,7 +504,6 @@ export const GOLDEN_SCENARIOS: GoldenScenario[] = [
     aiFault: null,
     benchmark: { afterDetectionSeconds: 20, noIncidentTick: 60 },
     expectations: { incidentExpected: true, primaryEntityId: "partner-a", retail: "none", otherPartnersImpaired: false, breakerOpens: "partner-a", resolvesWithoutActionWithin: null },
-    forcedApprovals: [{ actionId: "scale_gateway_capacity", targetEntityId: null }],
     mockDiagnosis: {
       summary: "[MOCK — test fixture, not a real LLM response] Capacity pressure suspected.",
       severity: "medium",

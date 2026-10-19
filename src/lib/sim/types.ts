@@ -342,7 +342,10 @@ export interface InvestigationRecord {
   appliedAt: number;
   provider: string;
   model: string | null;
+  /** Total wall-clock investigation time (LLM attempts + any fallback), ms. */
   latencyMs: number;
+  /** Wall-clock time spent in LLM attempts only, ms (null if no LLM was called). */
+  llmLatencyMs: number | null;
   startedAtWallMs: number;
   completedAtWallMs: number;
   firstResponseMs: number | null;
@@ -352,6 +355,7 @@ export interface InvestigationRecord {
   usage: { promptTokens: number | null; completionTokens: number | null; totalTokens: number | null } | null;
   fallbackUsed: boolean;
   faultInjected: string | null;
+  validationNotes: string[];
   diagnosis: import("../ai/schema").Diagnosis;
   speed: number;
 }
