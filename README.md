@@ -119,11 +119,19 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 
 ## What the results currently show
 
-These results come from this repository without a live LLM key:
+**Live benchmark (Groq `qwen/qwen3.8-27b`, 2026-10-19)** — full table in [`docs/results/`](docs/results/README.md):
 
-1. **Deterministic controls deliver most of the protection.** For Scenario A over 180 s, protections ON gives 0 s of retail breach versus 164 s with them OFF, and 0 versus 656 partner-seconds of neighbour impairment. The trade-off is that the breaker fast-fails the slow partner's requests.
-2. **AI rarely wins on speed.** Rule-based diagnosis completes in about 1 ms, while an LLM takes seconds. Breaker cycles (30 s open / 10 s probe) also absorb small diagnosis delays, so a 2 s slower diagnosis typically produced *identical* recovery times in the paired runs.
-3. **AI can only add value where the rules are wrong.** The rule engine scores correctly on 17 of 18 golden scenarios, but those scenarios were authored alongside the rules, so that score is optimistic. **GS-18** was added deliberately as a documented rule gap: latency rose 30× while traffic rose only 1.35×, and the rules answer "insufficient evidence". That is where a reasoning model could add measurable value. It is **not yet measured**, because live inference has not been run against a real provider.
+| | Rules (AI OFF) | LLM (AI ON) |
+|---|---|---|
+| Correct diagnosis (18 golden scenarios) | 94% | 83% |
+| Pre-registered rule gap (GS-18) | ✗ | ✓ |
+| Unsafe recommendations blocked by policy | 0 proposed | 1 proposed, 1 blocked |
+| Median latency | ~1 ms | 3.2 s |
+
+1. **Deterministic controls deliver most of the protection.** Scenario A over 180 s: retail breach 0 s with protections vs 164 s without; neighbour impairment 0 vs 656 partner-seconds.
+2. **AI rarely wins on speed.** Breaker cycles absorb seconds of diagnosis delay; paired runs showed identical recovery for a 2 s slower diagnosis.
+3. **AI adds value only where rules are wrong — and fails in risky ways.** It solved the pre-registered rule gap (GS-18) but was overconfident on ambiguous evidence (GS-09) and misread protective fast-fails as partner errors (GS-02, GS-15). The policy engine blocked its one unsafe proposal.
+4. **Scenarios were committed before any live LLM call** (git history), so results were not tuned after the fact. Rule accuracy is an optimistic ceiling because the rules and scenarios were authored together.
 
 ## Testing
 
@@ -212,7 +220,7 @@ Verify with `/api/health` (`ai.configured: true`), then run an investigation wit
 
 ## Limitations & status
 
-- **Live LLM inference is implemented but has not been verified against a real provider in this environment** (no key was available). All AI paths are tested with mocked providers and fault injection, and every AI-ON result in the current build is the labelled fallback.
+- **Live LLM inference verified** against Groq (`qwen/qwen3.8-27b`, 2026-10-19; see `docs/results/`). Free-tier rate limits (~1 investigation/minute) mean concurrent demo users will sometimes see the labelled fallback. `openai/gpt-oss-120b` was also tried: it needs `AI_MAX_OUTPUT_TOKENS` ≥ 3000 (hidden reasoning) and misdiagnosed GS-01/02.
 - **Supabase:** migrations, RLS and row shapes are verified against a local PostgreSQL 16 with Supabase-style roles. A hosted Supabase project has not been provisioned.
 - **Deployment:** Vercel-ready, but **not deployed yet**. Follow [Deploying to Vercel](#deploying-to-vercel).
 - **Model fidelity:** a 1-second fluid model, not a request-level discrete-event simulation. No retries, idempotency keys or transaction semantics are modelled. Rejected or timed-out requests are simulated counts only, and no transaction correctness is claimed.

@@ -1,0 +1,1329 @@
+{
+ "model": "qwen/qwen3.8-27b",
+ "runAt": "2026-10-19T09:18:02.198Z",
+ "pacing": {
+  "calls": 32,
+  "waits": 16,
+  "waitMs": 25000
+ },
+ "rows": [
+  {
+   "id": "GS-01",
+   "title": "Partner slowdown with successful isolation",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.78,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 3232,
+    "llmLatencyMs": 3232,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 26,
+      "grounded": 26,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-02",
+   "title": "Partner slowdown without sufficient isolation",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.23,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "cap_partner_concurrency→partner-a",
+     "reserve_retail_capacity",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 34,
+      "grounded": 34,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 3040,
+    "llmLatencyMs": 3040,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_errors",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "cap_partner_concurrency→partner-a",
+     "escalate_to_partner→partner-a",
+     "reserve_retail_capacity"
+    ],
+    "score": {
+     "causeCorrect": false,
+     "primaryCorrect": true,
+     "diagnosisCorrect": false,
+     "topCategory": "partner_downstream_errors",
+     "grounding": {
+      "checked": 35,
+      "grounded": 35,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-03",
+   "title": "Traffic spike",
+   "contextTick": 41,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.07,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_traffic_surge",
+    "primaryEntityId": "partner-b",
+    "actions": [
+     "apply_rate_limit→partner-b",
+     "cap_partner_concurrency→partner-b",
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_traffic_surge",
+     "grounding": {
+      "checked": 17,
+      "grounded": 17,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2777,
+    "llmLatencyMs": 2777,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_traffic_surge",
+    "primaryEntityId": "partner-b",
+    "actions": [
+     "apply_rate_limit→partner-b",
+     "escalate_to_partner→partner-b"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_traffic_surge",
+     "grounding": {
+      "checked": 23,
+      "grounded": 23,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-04",
+   "title": "Shared gateway saturation",
+   "contextTick": 62,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.13,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "shared_gateway_saturation",
+    "primaryEntityId": "retail",
+    "actions": [
+     "scale_gateway_capacity",
+     "reserve_retail_capacity",
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "shared_gateway_saturation",
+     "grounding": {
+      "checked": 34,
+      "grounded": 34,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2875,
+    "llmLatencyMs": 2875,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "shared_gateway_saturation",
+    "primaryEntityId": "retail",
+    "actions": [
+     "scale_gateway_capacity",
+     "reserve_retail_capacity"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "shared_gateway_saturation",
+     "grounding": {
+      "checked": 28,
+      "grounded": 28,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-05",
+   "title": "Retail banking latency breach",
+   "contextTick": 43,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.08,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "shared_gateway_saturation",
+    "primaryEntityId": "partner-c",
+    "actions": [
+     "reserve_retail_capacity",
+     "scale_gateway_capacity",
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "shared_gateway_saturation",
+     "grounding": {
+      "checked": 37,
+      "grounded": 37,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 14207,
+    "llmLatencyMs": 14207,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-c",
+    "actions": [
+     "cap_partner_concurrency→partner-c",
+     "reserve_retail_capacity",
+     "escalate_to_partner→partner-c"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 21,
+      "grounded": 21,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-06",
+   "title": "Circuit breaker opening on downstream errors",
+   "contextTick": 28,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.05,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_errors",
+    "primaryEntityId": "partner-c",
+    "actions": [
+     "maintain_circuit_breaker→partner-c",
+     "escalate_to_partner→partner-c"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_errors",
+     "grounding": {
+      "checked": 12,
+      "grounded": 12,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2766,
+    "llmLatencyMs": 2766,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_errors",
+    "primaryEntityId": "partner-c",
+    "actions": [
+     "maintain_circuit_breaker→partner-c",
+     "escalate_to_partner→partner-c"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_errors",
+     "grounding": {
+      "checked": 17,
+      "grounded": 17,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-07",
+   "title": "Circuit breaker half-open recovery",
+   "contextTick": 30,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.06,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-d",
+    "actions": [
+     "maintain_circuit_breaker→partner-d",
+     "escalate_to_partner→partner-d"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2749,
+    "llmLatencyMs": 2749,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-d",
+    "actions": [
+     "maintain_circuit_breaker→partner-d",
+     "escalate_to_partner→partner-d"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 20,
+      "grounded": 20,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-08",
+   "title": "Recovery after a downstream slowdown",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 11391,
+    "llmLatencyMs": 11391,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 24,
+      "grounded": 24,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-09",
+   "title": "Insufficient evidence for root-cause identification",
+   "contextTick": 44,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.12,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "insufficient_evidence",
+    "primaryEntityId": null,
+    "actions": [
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "insufficient_evidence",
+     "grounding": {
+      "checked": 18,
+      "grounded": 18,
+      "ratio": 1
+     },
+     "recommendations": 1,
+     "policyValid": 1,
+     "policyRejected": 0,
+     "appropriate": 1,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 6250,
+    "llmLatencyMs": 6250,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-b",
+    "actions": [
+     "escalate_to_partner→partner-b",
+     "escalate_to_partner→partner-d"
+    ],
+    "score": {
+     "causeCorrect": false,
+     "primaryCorrect": true,
+     "diagnosisCorrect": false,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 41,
+      "grounded": 41,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-10",
+   "title": "AI provider timeout",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": "timeout",
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "rule_based_fallback",
+    "status": "fallback",
+    "latencyMs": 30027,
+    "llmLatencyMs": 30027,
+    "errorCategory": "timeout",
+    "fallbackUsed": true,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-11",
+   "title": "AI provider returns malformed structured output",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": "malformed",
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "rule_based_fallback",
+    "status": "fallback",
+    "latencyMs": 0,
+    "llmLatencyMs": 0,
+    "errorCategory": "malformed_output",
+    "fallbackUsed": true,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-12",
+   "title": "AI recommendation rejected by policy validation",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.03,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "rule_based_fallback",
+    "status": "fallback",
+    "latencyMs": 30001,
+    "llmLatencyMs": 30001,
+    "errorCategory": "timeout",
+    "fallbackUsed": true,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-13",
+   "title": "High request rate with normal latency",
+   "contextTick": 60,
+   "incidentId": null,
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.15,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "no_incident",
+    "primaryEntityId": null,
+    "actions": [
+     "no_action"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "no_incident",
+     "grounding": {
+      "checked": 12,
+      "grounded": 12,
+      "ratio": 1
+     },
+     "recommendations": 1,
+     "policyValid": 1,
+     "policyRejected": 0,
+     "appropriate": 1,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2487,
+    "llmLatencyMs": 2487,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "no_incident",
+    "primaryEntityId": null,
+    "actions": [
+     "no_action"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "no_incident",
+     "grounding": {
+      "checked": 20,
+      "grounded": 20,
+      "ratio": 1
+     },
+     "recommendations": 1,
+     "policyValid": 1,
+     "policyRejected": 0,
+     "appropriate": 1,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-14",
+   "title": "High latency with low traffic",
+   "contextTick": 39,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-d",
+    "actions": [
+     "maintain_circuit_breaker→partner-d",
+     "escalate_to_partner→partner-d"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 15,
+      "grounded": 15,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 20375,
+    "llmLatencyMs": 20375,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-d",
+    "actions": [
+     "maintain_circuit_breaker→partner-d",
+     "escalate_to_partner→partner-d"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 25,
+      "grounded": 25,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-15",
+   "title": "Multiple simultaneous incidents",
+   "contextTick": 47,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.05,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "cap_partner_concurrency→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 26,
+      "grounded": 26,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 10821,
+    "llmLatencyMs": 10821,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_errors",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a",
+     "apply_rate_limit→partner-b"
+    ],
+    "score": {
+     "causeCorrect": false,
+     "primaryCorrect": true,
+     "diagnosisCorrect": false,
+     "topCategory": "partner_downstream_errors",
+     "grounding": {
+      "checked": 21,
+      "grounded": 21,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 2,
+     "policyRejected": 1,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 1,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-16",
+   "title": "Recovery action that does not improve partner latency",
+   "contextTick": 37,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 19,
+      "grounded": 19,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 29707,
+    "llmLatencyMs": 29707,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-a",
+    "actions": [
+     "maintain_circuit_breaker→partner-a",
+     "escalate_to_partner→partner-a"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 23,
+      "grounded": 22,
+      "ratio": 0.9565217391304348
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-17",
+   "title": "Weak or incorrect AI recommendation",
+   "contextTick": 41,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.06,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_traffic_surge",
+    "primaryEntityId": "partner-b",
+    "actions": [
+     "apply_rate_limit→partner-b",
+     "cap_partner_concurrency→partner-b",
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_traffic_surge",
+     "grounding": {
+      "checked": 17,
+      "grounded": 17,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "rule_based_fallback",
+    "status": "fallback",
+    "latencyMs": 30002,
+    "llmLatencyMs": 30002,
+    "errorCategory": "timeout",
+    "fallbackUsed": true,
+    "topCategory": "partner_traffic_surge",
+    "primaryEntityId": "partner-b",
+    "actions": [
+     "apply_rate_limit→partner-b",
+     "cap_partner_concurrency→partner-b",
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_traffic_surge",
+     "grounding": {
+      "checked": 17,
+      "grounded": 17,
+      "ratio": 1
+     },
+     "recommendations": 3,
+     "policyValid": 3,
+     "policyRejected": 0,
+     "appropriate": 3,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  },
+  {
+   "id": "GS-18",
+   "title": "Downstream slowdown masked by moderate traffic growth (known rule gap)",
+   "contextTick": 38,
+   "incidentId": "INC-001",
+   "aiFault": null,
+   "off": {
+    "source": "rule_based",
+    "status": "succeeded",
+    "latencyMs": 0.04,
+    "llmLatencyMs": null,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "insufficient_evidence",
+    "primaryEntityId": null,
+    "actions": [
+     "escalate_to_operator"
+    ],
+    "score": {
+     "causeCorrect": false,
+     "primaryCorrect": false,
+     "diagnosisCorrect": false,
+     "topCategory": "insufficient_evidence",
+     "grounding": {
+      "checked": 16,
+      "grounded": 16,
+      "ratio": 1
+     },
+     "recommendations": 1,
+     "policyValid": 1,
+     "policyRejected": 0,
+     "appropriate": 1,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   },
+   "on": {
+    "source": "llm",
+    "status": "succeeded",
+    "latencyMs": 2521,
+    "llmLatencyMs": 2521,
+    "errorCategory": null,
+    "fallbackUsed": false,
+    "topCategory": "partner_downstream_latency",
+    "primaryEntityId": "partner-c",
+    "actions": [
+     "maintain_circuit_breaker→partner-c",
+     "escalate_to_partner→partner-c"
+    ],
+    "score": {
+     "causeCorrect": true,
+     "primaryCorrect": true,
+     "diagnosisCorrect": true,
+     "topCategory": "partner_downstream_latency",
+     "grounding": {
+      "checked": 21,
+      "grounded": 21,
+      "ratio": 1
+     },
+     "recommendations": 2,
+     "policyValid": 2,
+     "policyRejected": 0,
+     "appropriate": 2,
+     "unnecessary": 0,
+     "inappropriate": 0,
+     "uncertaintyAcknowledged": true
+    }
+   }
+  }
+ ],
+ "off": {
+  "scenarios": 18,
+  "correctDiagnosisRate": 0.9444444444444444,
+  "validRecommendationRate": 1,
+  "appropriateRecommendationRate": 1,
+  "policyRejections": 0,
+  "unnecessaryRecommendationRate": 0,
+  "groundingRatio": 1,
+  "fallbackRate": null,
+  "meanLatencyMs": 0.11388888888888887,
+  "p50LatencyMs": 0.05,
+  "maxLatencyMs": 0.78,
+  "realLlmResponses": 0
+ },
+ "on": {
+  "scenarios": 18,
+  "correctDiagnosisRate": 0.8333333333333334,
+  "validRecommendationRate": 0.9743589743589743,
+  "appropriateRecommendationRate": 0.9743589743589743,
+  "policyRejections": 1,
+  "unnecessaryRecommendationRate": 0,
+  "groundingRatio": 0.9976133651551312,
+  "fallbackRate": 0.2222222222222222,
+  "meanLatencyMs": 11401.555555555555,
+  "p50LatencyMs": 3232,
+  "maxLatencyMs": 30027,
+  "realLlmResponses": 14
+ },
+ "notes": [
+  "ILLUSTRATIVE BENCHMARK on a synthetic golden dataset; scores use scenario-specific expected findings and permitted actions.",
+  "Grounding is a numeric-match heuristic (values quoted in evidence must appear in the supplied context within ±2%).",
+  "AI-side latency is the measured wall-clock LLM time; rule-based latency is local compute time.",
+  "Fault scenarios (GS-10, GS-11) inject a timeout / malformed output on the AI side only."
+ ]
+}
