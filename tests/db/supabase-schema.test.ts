@@ -62,7 +62,7 @@ d("Supabase schema, RLS and row shapes (local PostgreSQL)", () => {
     r.advance(15);
     const inc = r.state.incidents[0];
     const diag = ruleBasedDiagnosis(buildIncidentContext(r.state, inc.id));
-    const e: WorkflowEntry = { kind: "investigation", entryId: "INV-db", sessionId: "sess-1", incidentId: inc.id, requestedAt: r.state.tick, applyAt: r.state.tick, data: { mode: "ai_off", source: "rule_based", status: "succeeded", provider: "rules", model: null, latencyMs: 1, llmLatencyMs: null, startedAtWallMs: Date.now(), completedAtWallMs: Date.now(), firstResponseMs: null, attempts: 0, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: diag, speed: 1 } };
+    const e: WorkflowEntry = { kind: "investigation", entryId: "INV-db", sessionId: "sess-1", incidentId: inc.id, requestedAt: r.state.tick, applyAt: r.state.tick, data: { mode: "ai_off", workflow: "automated_rules", assumedTriageSeconds: 0, source: "rule_based", status: "succeeded", provider: "rules", model: null, latencyMs: 1, llmLatencyMs: null, startedAtWallMs: Date.now(), completedAtWallMs: Date.now(), firstResponseMs: null, attempts: 0, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: diag, speed: 1 } };
     r.apply({ k: "entry", at: r.state.tick, signed: { entry: e, sig: "x" } });
     const rec = inc.recommendations.find((x) => x.actionId === "escalate_to_partner")!;
     const dec: WorkflowEntry = { kind: "decision", entryId: "DEC-db", sessionId: "sess-1", incidentId: inc.id, recommendationId: rec.id, decision: "approve", applyAt: r.state.tick, wallMs: Date.now(), actor: "human" };

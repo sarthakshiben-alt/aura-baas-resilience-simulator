@@ -60,6 +60,8 @@ export async function investigateIncident(opts: InvestigateOptions): Promise<Inv
     const latencyMs = Math.round((performance.now() - t0) * 100) / 100;
     return {
       mode: "ai_off",
+      workflow: "automated_rules",
+      assumedTriageSeconds: 0,
       source: "rule_based",
       status: "succeeded",
       provider: "rules",
@@ -145,6 +147,8 @@ export async function investigateIncident(opts: InvestigateOptions): Promise<Inv
   if (diagnosis && provider) {
     return {
       mode: "ai_on",
+      workflow: "ai_assisted",
+      assumedTriageSeconds: 0,
       source: "llm",
       status: "succeeded",
       provider: provider.id,
@@ -175,6 +179,8 @@ export async function investigateIncident(opts: InvestigateOptions): Promise<Inv
   log("ai_fallback", { category: errorCategory, fault: opts.fault ?? null });
   return {
     mode: "ai_on",
+    workflow: "ai_assisted",
+    assumedTriageSeconds: 0,
     source: "rule_based_fallback",
     status: fallback ? "fallback" : "failed",
     provider: provider?.id ?? "none",

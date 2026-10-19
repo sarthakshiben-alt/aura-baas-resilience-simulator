@@ -125,7 +125,7 @@ describe("AI investigation", () => {
     const inc = r.state.incidents[0];
     const entry: WorkflowEntry = {
       kind: "investigation", entryId: "INV-t15", sessionId: "s", incidentId: inc.id, requestedAt: r.state.tick, applyAt: r.state.tick,
-      data: { mode: "ai_on", source: "llm", status: "succeeded", provider: "mock", model: "mock", latencyMs: 10, llmLatencyMs: 10, startedAtWallMs: 0, completedAtWallMs: 10, firstResponseMs: 5, attempts: 1, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: gs.mockDiagnosis!, speed: 1 },
+      data: { mode: "ai_on", workflow: "ai_assisted", assumedTriageSeconds: 0, source: "llm", status: "succeeded", provider: "mock", model: "mock", latencyMs: 10, llmLatencyMs: 10, startedAtWallMs: 0, completedAtWallMs: 10, firstResponseMs: 5, attempts: 1, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: gs.mockDiagnosis!, speed: 1 },
     };
     r.apply({ k: "entry", at: r.state.tick, signed: { entry, sig: "x" } });
     const recs = r.state.incidents[0].recommendations;
@@ -213,7 +213,7 @@ describe("AI investigation", () => {
     r.advance(15);
     const inc = r.state.incidents[0];
     const d = ruleBasedDiagnosis(buildIncidentContext(r.state, inc.id));
-    const entry: WorkflowEntry = { kind: "investigation", entryId: "INV-x", sessionId: "s", incidentId: inc.id, requestedAt: r.state.tick, applyAt: r.state.tick, data: { mode: "ai_off", source: "rule_based", status: "succeeded", provider: "rules", model: null, latencyMs: 1, llmLatencyMs: null, startedAtWallMs: 0, completedAtWallMs: 1, firstResponseMs: null, attempts: 0, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: d, speed: 1 } };
+    const entry: WorkflowEntry = { kind: "investigation", entryId: "INV-x", sessionId: "s", incidentId: inc.id, requestedAt: r.state.tick, applyAt: r.state.tick, data: { mode: "ai_off", workflow: "automated_rules", assumedTriageSeconds: 0, source: "rule_based", status: "succeeded", provider: "rules", model: null, latencyMs: 1, llmLatencyMs: null, startedAtWallMs: 0, completedAtWallMs: 1, firstResponseMs: null, attempts: 0, errorCategory: null, llmError: null, usage: null, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: d, speed: 1 } };
     r.apply({ k: "entry", at: r.state.tick, signed: { entry, sig: "x" } });
     const esc = inc.recommendations.find((x) => x.actionId === "escalate_to_partner")!;
     const dec: WorkflowEntry = { kind: "decision", entryId: "DEC-1", sessionId: "s", incidentId: inc.id, recommendationId: esc.id, decision: "approve", applyAt: r.state.tick, wallMs: 1, actor: "human" };

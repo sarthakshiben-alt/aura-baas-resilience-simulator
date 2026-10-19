@@ -29,6 +29,8 @@ export interface InteractiveRun {
   incidentId: string;
   scenarioLabel: string;
   mode: InvestigationMode | "none";
+  workflow: string | null;
+  triageSeconds: number;
   speed: number;
   metrics: RunMetrics;
   diagnosisSource: string | null;
@@ -55,7 +57,12 @@ export class SimController {
   aiFault: "timeout" | "malformed" | null = null;
   aiStatus: PublicAiStatus | null = null;
   goldenId: string | null = null;
-  pendingInvestigations = new Map<string, { requestedAt: number; startedWall: number; mode: InvestigationMode }>();
+  pendingInvestigations = new Map<string, { requestedAt: number; startedWall: number; mode: InvestigationMode; readyAt: number | null; triageSeconds: number; auto: boolean }>();
+  /** ASSUMED minutes for an on-call engineer to triage manually when AI is OFF (0 = automated rules). */
+  manualTriageMinutes = 10;
+  /** Start the investigation automatically when monitoring opens an incident (models the page / AI auto-triage). */
+  autoInvestigate = true;
+  private autoStarted = new Set<string>();
   investigationErrors = new Map<string, string>();
   busyRecs = new Set<string>();
   notices: Notice[] = [];
@@ -117,7 +124,7 @@ export class SimController {
   save() {
     this.lastSave = Date.now();
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ session: this.session, sessionId: this.sessionId, log: { ...this.log, tick: this.state.tick }, speed: this.speed, aiMode: this.aiMode, goldenId: this.goldenId, runs: this.interactiveRuns }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ session: this.session, sessionId: this.sessionId, log: { ...this.log, tick: this.state.tick }, speed: this.speed, aiMode: this.aiMode, goldenId: this.goldenId, runs: this.interactiveRuns, triage: this.manualTriageMinutes, autoInvestigate: this.autoInvestigate, autoStarted: [...this.autoStarted] }));
     } catch {
       /* storage unavailable: per-viewer convenience only */
     }
@@ -136,6 +143,9 @@ export class SimController {
       this.aiMode = s.aiMode === "ai_off" ? "ai_off" : "ai_on";
       this.goldenId = s.goldenId ?? null;
       this.interactiveRuns = Array.isArray(s.runs) ? s.runs : [];
+      if (typeof s.triage === "number") this.manualTriageMinutes = s.triage;
+      if (typeof s.autoInvestigate === "boolean") this.autoInvestigate = s.autoInvestigate;
+      if (Array.isArray(s.autoStarted)) this.autoStarted = new Set(s.autoStarted);
       this.rebuild();
       for (const i of this.state.incidents) if (i.status === "resolved") this.resolvedSeen.add(i.id);
       return true;
@@ -165,6 +175,7 @@ export class SimController {
     this.busyRecs.clear();
     this.chats.clear();
     this.resolvedSeen.clear();
+    this.autoStarted.clear();
     this.applyDue();
     this.save();
     this.emit();
@@ -193,6 +204,16 @@ export class SimController {
   }
   setGuideStep(step: number | null) {
     this.guideStep = step;
+    this.emit();
+  }
+  setManualTriageMinutes(m: number) {
+    this.manualTriageMinutes = Math.max(0, Math.min(30, m));
+    this.save();
+    this.emit();
+  }
+  setAutoInvestigate(v: boolean) {
+    this.autoInvestigate = v;
+    this.save();
     this.emit();
   }
   setAiFault(f: "timeout" | "malformed" | null) {
@@ -230,6 +251,13 @@ export class SimController {
         if (this.session) api.sync(this.session, this.snapshotLog()).catch(() => {});
       }
     }
+    if (this.autoInvestigate && this.session) {
+      for (const inc of this.state.incidents) {
+        if (inc.status === "resolved" || inc.investigations.length || this.autoStarted.has(inc.id) || this.pendingInvestigations.has(inc.id)) continue;
+        this.autoStarted.add(inc.id);
+        void this.investigate(inc.id, true);
+      }
+    }
     for (const [id, p] of this.pendingInvestigations) {
       const inc = this.state.incidents.find((i) => i.id === id);
       if (inc && inc.investigations.some((iv) => iv.requestedAt === p.requestedAt)) this.pendingInvestigations.delete(id);
@@ -244,6 +272,8 @@ export class SimController {
       incidentId: inc.id,
       scenarioLabel: (this.goldenId ? `${this.goldenId} · ` : "") + (labels.join(" + ") || "Ad-hoc"),
       mode: inc.investigationMode ?? "none",
+      workflow: inc.investigations[0]?.workflow ?? null,
+      triageSeconds: inc.investigations[0]?.assumedTriageSeconds ?? 0,
       speed: this.speed,
       metrics: incidentMetrics(this.state, inc, inc.startedAt),
       diagnosisSource: inc.investigations[0]?.source ?? null,
@@ -325,17 +355,22 @@ export class SimController {
     return this.session;
   }
 
-  async investigate(incidentId: string) {
+  async investigate(incidentId: string, auto = false) {
     const session = this.requireSession();
     if (!session || this.pendingInvestigations.has(incidentId)) return;
     const log = this.snapshotLog();
     const mode = this.aiMode;
-    this.pendingInvestigations.set(incidentId, { requestedAt: log.tick, startedWall: Date.now(), mode });
+    // Manual triage applies to the FIRST conventional investigation only (the engineer is engaged afterwards).
+    const inc = this.state.incidents.find((i) => i.id === incidentId);
+    const triageMinutes = mode === "ai_off" && !inc?.investigations.length ? this.manualTriageMinutes : 0;
+    this.pendingInvestigations.set(incidentId, { requestedAt: log.tick, startedWall: Date.now(), mode, readyAt: null, triageSeconds: Math.round(triageMinutes * 60), auto });
     this.investigationErrors.delete(incidentId);
     this.emit();
     try {
-      const r = await api.investigate(session, log, incidentId, mode, mode === "ai_on" ? this.aiFault : null, this.speed);
+      const r = await api.investigate(session, log, incidentId, mode, mode === "ai_on" ? this.aiFault : null, this.speed, triageMinutes);
       if (this.session !== session) return; // reset while in flight
+      const pend = this.pendingInvestigations.get(incidentId);
+      if (pend) pend.readyAt = r.signed.entry.applyAt;
       this.addCommand({ k: "entry", at: r.signed.entry.applyAt, signed: r.signed });
     } catch (e) {
       if (this.session !== session) return;

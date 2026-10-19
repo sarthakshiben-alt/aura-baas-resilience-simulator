@@ -21,7 +21,8 @@ const Body = z
     seed: z.number().int().min(1).max(2_147_483_646).optional(),
     operatorDelaySeconds: z.number().int().min(0).max(300).default(20),
     latencyTimeScale: z.number().min(1).max(60).default(1),
-    maxSeconds: z.number().int().min(60).max(900).default(600),
+    maxSeconds: z.number().int().min(60).max(3600).default(2400),
+    manualTriageMinutes: z.number().min(0).max(30).default(10),
     reinvestigateEverySeconds: z.number().int().min(20).max(300).default(60),
     maxInvestigations: z.number().int().min(1).max(3).default(3),
   })
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
           latencyTimeScale: body.latencyTimeScale,
           reinvestigateEverySeconds: body.reinvestigateEverySeconds,
           maxInvestigations: body.maxInvestigations,
+          manualTriageSeconds: Math.round(body.manualTriageMinutes * 60),
         },
         serverInvestigator(),
       );
@@ -61,13 +63,14 @@ export async function POST(req: Request) {
     }
     const pairId = randomUUID();
     const completedAt = new Date().toISOString();
-    const rows = (["off", "on"] as const).map((m) => ({
+    const rows = (["off", "rules", "on"] as const).map((m) => ({
       id: randomUUID(),
       pair_id: pairId,
       session_id: claims.sid,
       kind: "paired",
       scenario_id: body.goldenId ?? body.scenarioId ?? null,
-      mode: m === "off" ? "ai_off" : "ai_on",
+      mode: m === "on" ? "ai_on" : "ai_off",
+      workflow: result[m].workflow,
       seed: result.config.seed,
       started_at: startedAt,
       completed_at: completedAt,

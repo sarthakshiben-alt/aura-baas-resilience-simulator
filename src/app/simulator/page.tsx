@@ -237,6 +237,37 @@ function GoldenLoader() {
   );
 }
 
+function Workflow() {
+  const sim = useSim();
+  return (
+    <Card>
+      <CardHeader title="Investigation workflow" subtitle="How incidents get diagnosed. Gateway protections are never delayed by any of these settings." />
+      <div className="space-y-3 p-4 text-xs text-text-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm text-text">Auto-investigate on detection</div>
+            <div className="text-[11px] text-muted">AI ON: AI starts immediately. AI OFF: the on-call engineer is paged and triages manually.</div>
+          </div>
+          <Switch checked={sim.autoInvestigate} onCheckedChange={(v) => sim.setAutoInvestigate(v)} label="Auto-investigate on detection" />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm text-text">Assumed manual triage (AI OFF)</div>
+            <div className="text-[11px] text-muted">Simulated minutes before the runbook diagnosis. An input assumption, not measured data. 0 = runbook automated without AI.</div>
+          </div>
+          <Select value={sim.manualTriageMinutes} onChange={(e) => sim.setManualTriageMinutes(Number(e.target.value))} className="h-8 text-xs" aria-label="Assumed manual triage minutes">
+            {[0, 1, 5, 10, 20, 30].map((m) => (
+              <option key={m} value={m}>
+                {m === 0 ? "0 (automated rules)" : `${m} min`}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function AiFault() {
   const sim = useSim();
   return (
@@ -280,6 +311,7 @@ function SimulatorPageInner() {
         </div>
         <div className="space-y-4">
           <Protections />
+          <Workflow />
           <AiFault />
           <GoldenLoader />
         </div>

@@ -10,6 +10,7 @@ import { Chip, SimTag, SourceBadge } from "@/components/status";
 import { GOLDEN_SCENARIOS } from "@/lib/golden/dataset";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { diff, ratio, type RunMetrics } from "@/lib/comparison/metrics";
+import type { SensitivityRow } from "@/lib/comparison/paired";
 import { CASE_COST_PER_DOWNTIME_MINUTE_USD, computeBusinessValue } from "@/lib/comparison/business";
 import type { BenchmarkAggregate } from "@/lib/comparison/benchmark";
 import type { DiagnosisSource } from "@/lib/sim/types";
@@ -35,53 +36,91 @@ function DiffCell({ a, b, f, lowerIsBetter = true }: { a: number | null; b: numb
   );
 }
 
-function MetricsTable({ off, on }: { off: RunMetrics; on: RunMetrics }) {
+function MetricsTable({ off, rules, on }: { off: RunMetrics; rules: RunMetrics; on: RunMetrics }) {
   const rate = (m: RunMetrics) => ratio(m.validRecommendations, m.recommendations);
   const unn = (m: RunMetrics) => ratio(m.unnecessaryInterventions, m.interventionsExecuted);
-  const rows: [string, number | null, number | null, Fmt, boolean?][] = [
-    ["Time to detection (sim)", off.timeToDetectionS, on.timeToDetectionS, secs],
-    ["Time to diagnosis (sim)", off.timeToDiagnosisS, on.timeToDiagnosisS, secs],
-    ["Investigation request → diagnosis (sim)", off.investigationDurationS, on.investigationDurationS, secs],
-    ["Time to recommendation (sim)", off.timeToRecommendationS, on.timeToRecommendationS, secs],
-    ["Time to first decision (sim)", off.timeToFirstDecisionS, on.timeToFirstDecisionS, secs],
-    ["Time to verified recovery (sim)", off.timeToRecoveryS, on.timeToRecoveryS, secs],
-    ["AI inference latency (wall-clock, mean)", off.aiInferenceLatencyMs, on.aiInferenceLatencyMs, ms],
-    ["Retail target breach (sim s)", off.retailBreachSeconds, on.retailBreachSeconds, secs],
-    ["Partner impact (partner-seconds)", off.partnerImpactSeconds, on.partnerImpactSeconds, secs],
-    ["Primary partner downtime (sim s)", off.primaryDowntimeSeconds, on.primaryDowntimeSeconds, secs],
-    ["Investigations run", off.investigations, on.investigations, num],
-    ["Valid recommendation rate", rate(off), rate(on), pct, false],
-    ["Policy rejections", off.policyRejections, on.policyRejections, num],
-    ["Unnecessary intervention rate", unn(off), unn(on), pct],
+  const rows: [string, (m: RunMetrics) => number | null, Fmt, boolean?][] = [
+    ["Time to detection (sim)", (m) => m.timeToDetectionS, secs],
+    ["Time to diagnosis (sim)", (m) => m.timeToDiagnosisS, secs],
+    ["Investigation request → diagnosis (sim)", (m) => m.investigationDurationS, secs],
+    ["Time to recommendation (sim)", (m) => m.timeToRecommendationS, secs],
+    ["Time to first decision (sim)", (m) => m.timeToFirstDecisionS, secs],
+    ["Time to verified recovery (sim)", (m) => m.timeToRecoveryS, secs],
+    ["AI inference latency (wall-clock, mean)", (m) => m.aiInferenceLatencyMs, ms],
+    ["Retail target breach (sim s)", (m) => m.retailBreachSeconds, secs],
+    ["Partner impact (partner-seconds)", (m) => m.partnerImpactSeconds, secs],
+    ["Primary partner downtime (sim s)", (m) => m.primaryDowntimeSeconds, secs],
+    ["Investigations run", (m) => m.investigations, num],
+    ["Valid recommendation rate", rate, pct, false],
+    ["Policy rejections", (m) => m.policyRejections, num],
+    ["Unnecessary intervention rate", unn, pct],
   ];
   return (
     <div className="overflow-x-auto">
-      <table className="tabular w-full min-w-[640px] text-xs" data-testid="paired-table">
+      <table className="tabular w-full min-w-[860px] text-xs" data-testid="paired-table">
         <thead className="text-left text-muted">
           <tr>
             <th className="px-3 py-2 font-medium">Metric</th>
-            <th className="px-3 py-2 text-right font-medium">AI OFF</th>
-            <th className="px-3 py-2 text-right font-medium">AI ON</th>
-            <th className="px-3 py-2 text-right font-medium">Difference (ON − OFF)</th>
+            <th className="px-3 py-2 text-right font-medium">Manual runbook</th>
+            <th className="px-3 py-2 text-right font-medium">Automated rules (no AI)</th>
+            <th className="px-3 py-2 text-right font-medium">AI-assisted</th>
+            <th className="px-3 py-2 text-right font-medium">AI vs manual</th>
+            <th className="px-3 py-2 text-right font-medium">AI vs automated rules</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(([label, a, b, f, lower]) => (
+          {rows.map(([label, get, f, lower]) => (
             <tr key={label} className="border-t border-border">
               <td className="px-3 py-1.5 text-text-2">{label}</td>
-              <td className="px-3 py-1.5 text-right text-text">{f(a)}</td>
-              <td className="px-3 py-1.5 text-right text-text">{f(b)}</td>
-              <DiffCell a={a} b={b} f={f} lowerIsBetter={lower ?? true} />
+              <td className="px-3 py-1.5 text-right text-text">{f(get(off))}</td>
+              <td className="px-3 py-1.5 text-right text-text">{f(get(rules))}</td>
+              <td className="px-3 py-1.5 text-right text-text">{f(get(on))}</td>
+              <DiffCell a={get(off)} b={get(on)} f={f} lowerIsBetter={lower ?? true} />
+              <DiffCell a={get(rules)} b={get(on)} f={f} lowerIsBetter={lower ?? true} />
             </tr>
           ))}
           <tr className="border-t border-border">
-            <td className="px-3 py-1.5 text-text-2">Diagnosis source / fallback</td>
-            <td className="px-3 py-1.5 text-right">{off.diagnosisSource ? <SourceBadge source={off.diagnosisSource as DiagnosisSource} /> : "N/A"}</td>
-            <td className="px-3 py-1.5 text-right">{on.diagnosisSource ? <SourceBadge source={on.diagnosisSource as DiagnosisSource} /> : "N/A"}</td>
-            <td className="px-3 py-1.5 text-right text-muted">{on.errorCategory ? `AI error: ${on.errorCategory}` : ""}</td>
+            <td className="px-3 py-1.5 text-text-2">Diagnosis source</td>
+            {[off, rules, on].map((m, i) => (
+              <td key={i} className="px-3 py-1.5 text-right">{m.diagnosisSource ? <SourceBadge source={m.diagnosisSource as DiagnosisSource} /> : "N/A"}</td>
+            ))}
+            <td colSpan={2} className="px-3 py-1.5 text-right text-muted">{on.errorCategory ? `AI error: ${on.errorCategory}` : ""}</td>
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function Sensitivity({ rows, chosen }: { rows: SensitivityRow[]; chosen: number }) {
+  const breakEven = rows.find((r) => (r.aiRecoveryAdvantageS ?? -1) > 0);
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="text-xs font-semibold text-text">How much of the AI advantage is the triage assumption?</div>
+      <p className="mt-0.5 text-[11px] text-muted">Same scenario; only the assumed manual-triage time changes. AI-assisted result is fixed. Positive = AI recovered sooner / less downtime than the manual runbook.</p>
+      <table className="tabular mt-2 w-full text-xs" data-testid="sensitivity-table">
+        <thead className="text-left text-muted">
+          <tr>
+            <th className="py-1 font-medium">Assumed manual triage</th>
+            <th className="py-1 text-right font-medium">Manual recovery</th>
+            <th className="py-1 text-right font-medium">AI recovery advantage</th>
+            <th className="py-1 text-right font-medium">AI downtime advantage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.triageSeconds} className={cn("border-t border-border", r.triageSeconds === chosen && "bg-info/5 font-semibold")}>
+              <td className="py-1">{r.triageSeconds / 60} min{r.triageSeconds === 0 ? " (= automated rules)" : ""}{r.triageSeconds === chosen ? " ← selected" : ""}</td>
+              <td className="py-1 text-right">{secs(r.manualRecoveryS)}</td>
+              <td className={cn("py-1 text-right", (r.aiRecoveryAdvantageS ?? 0) > 0 ? "text-good-text" : (r.aiRecoveryAdvantageS ?? 0) < 0 ? "text-critical-text" : "")}>{r.aiRecoveryAdvantageS === null ? "N/A" : `${r.aiRecoveryAdvantageS > 0 ? "+" : ""}${r.aiRecoveryAdvantageS} s`}</td>
+              <td className={cn("py-1 text-right", r.aiDowntimeAdvantageS > 0 ? "text-good-text" : r.aiDowntimeAdvantageS < 0 ? "text-critical-text" : "")}>{`${r.aiDowntimeAdvantageS > 0 ? "+" : ""}${r.aiDowntimeAdvantageS} s`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[11px] text-text-2">
+        {breakEven ? `AI only beats the manual runbook once manual triage is assumed to take ≥ ${breakEven.triageSeconds / 60} min — and an automated rule engine (0 min row) achieves that speed without AI.` : "AI does not beat the manual runbook at any assumed triage time in this scenario."}
+      </p>
     </div>
   );
 }
@@ -91,10 +130,11 @@ function Paired() {
   const [scenario, setScenario] = useState("GS-01");
   const [delay, setDelay] = useState(20);
   const [scale, setScale] = useState(1);
+  const [triage, setTriage] = useState(sim.manualTriageMinutes);
   const r = sim.paired.result;
   const run = () => {
     const body: Record<string, unknown> = scenario.startsWith("GS-") ? { goldenId: scenario } : { scenarioId: scenario };
-    void sim.runPaired({ ...body, operatorDelaySeconds: delay, latencyTimeScale: scale });
+    void sim.runPaired({ ...body, operatorDelaySeconds: delay, latencyTimeScale: scale, manualTriageMinutes: triage });
   };
   return (
     <Card>
@@ -127,8 +167,14 @@ function Paired() {
             {[1, 5, 10, 30].map((v) => <option key={v} value={v}>{v === 1 ? "1× (real time)" : `${v}× (stress)`}</option>)}
           </Select>
         </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pair-triage">Assumed manual triage (conventional arm)</Label>
+          <Select id="pair-triage" value={triage} onChange={(e) => setTriage(Number(e.target.value))} className="text-xs">
+            {[0, 1, 5, 10, 20, 30].map((v) => <option key={v} value={v}>{v} min{v === 10 ? " (default)" : ""}</option>)}
+          </Select>
+        </div>
         <Button variant="primary" onClick={run} disabled={sim.paired.loading} data-testid="run-paired">
-          {sim.paired.loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Run AI OFF vs AI ON
+          {sim.paired.loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Run manual vs rules vs AI
         </Button>
         {sim.paired.error ? <span className="text-xs text-critical-text">{sim.paired.error}</span> : null}
       </div>
@@ -140,22 +186,23 @@ function Paired() {
             <b className="text-text">{r.label}</b> <Chip tone="neutral">seed {r.config.seed}</Chip>
             {r.on.metrics.diagnosisSource !== "llm" ? <Chip tone="warning">AI ON used fallback — AI value not measured</Chip> : <Chip tone="info">AI ON: real LLM responses</Chip>}
           </div>
-          <MetricsTable off={r.off.metrics} on={r.on.metrics} />
+          <MetricsTable off={r.off.metrics} rules={r.rules.metrics} on={r.on.metrics} />
+          <Sensitivity rows={r.sensitivity} chosen={r.config.manualTriageSeconds} />
           <GroupedBarChart
             ariaLabel="Simulated durations AI OFF vs AI ON"
             unit=" s"
             data={[
-              { metric: "Detection", off: r.off.metrics.timeToDetectionS, on: r.on.metrics.timeToDetectionS },
-              { metric: "Diagnosis", off: r.off.metrics.timeToDiagnosisS, on: r.on.metrics.timeToDiagnosisS },
-              { metric: "Recommendation", off: r.off.metrics.timeToRecommendationS, on: r.on.metrics.timeToRecommendationS },
-              { metric: "Recovery", off: r.off.metrics.timeToRecoveryS, on: r.on.metrics.timeToRecoveryS },
+              { metric: "Detection", off: r.off.metrics.timeToDetectionS, rules: r.rules.metrics.timeToDetectionS, on: r.on.metrics.timeToDetectionS },
+              { metric: "Diagnosis", off: r.off.metrics.timeToDiagnosisS, rules: r.rules.metrics.timeToDiagnosisS, on: r.on.metrics.timeToDiagnosisS },
+              { metric: "Recommendation", off: r.off.metrics.timeToRecommendationS, rules: r.rules.metrics.timeToRecommendationS, on: r.on.metrics.timeToRecommendationS },
+              { metric: "Recovery", off: r.off.metrics.timeToRecoveryS, rules: r.rules.metrics.timeToRecoveryS, on: r.on.metrics.timeToRecoveryS },
             ]}
-            series={[{ key: "off", label: "AI OFF", color: "var(--s1)" }, { key: "on", label: "AI ON", color: "var(--s2)" }]}
+            series={[{ key: "off", label: "Manual runbook", color: "var(--s1)" }, { key: "rules", label: "Automated rules (no AI)", color: "var(--s3)" }, { key: "on", label: "AI-assisted", color: "var(--s2)" }]}
           />
-          <div className="grid gap-3 text-xs md:grid-cols-2">
-            {(["off", "on"] as const).map((m) => (
+          <div className="grid gap-3 text-xs md:grid-cols-3">
+            {(["off", "rules", "on"] as const).map((m) => (
               <div key={m} className="rounded-md border border-border p-3">
-                <div className="font-semibold text-text">{m === "off" ? "AI OFF" : "AI ON"} — top cause: {r[m].topCause?.replace(/_/g, " ") ?? "N/A"}</div>
+                <div className="font-semibold text-text">{m === "off" ? "Manual runbook" : m === "rules" ? "Automated rules" : "AI-assisted"} — top cause: {r[m].topCause?.replace(/_/g, " ") ?? "N/A"}</div>
                 <div className="mt-1 text-text-2">{r[m].diagnosisSummary ?? "No diagnosis"}</div>
                 <div className="mt-1 text-muted">Approved by simulated operator: {r[m].approvedActions.join(", ") || "none"}{r[m].rejectedByPolicy.length ? ` · not approvable: ${r[m].rejectedByPolicy.join(", ")}` : ""}</div>
               </div>
@@ -193,9 +240,12 @@ function BusinessValue() {
           </div>
           <table className="tabular w-full">
             <tbody>
-              <tr><td className="py-1 text-muted">Partner downtime AI OFF / ON</td><td className="py-1 text-right">{fmtNum(bv.offDowntimeMinutes, 2)} / {fmtNum(bv.onDowntimeMinutes, 2)} min</td></tr>
-              <tr><td className="py-1 text-muted">Downtime minutes avoided by AI</td><td className="py-1 text-right font-semibold">{fmtNum(bv.downtimeMinutesAvoided, 2)}</td></tr>
-              <tr><td className="py-1 text-muted">Gross impact avoided (= minutes × $/min)</td><td className="py-1 text-right font-semibold">{usd(bv.grossImpactAvoidedUsd)}</td></tr>
+              <tr><td className="py-1 text-muted">Partner downtime manual / AI</td><td className="py-1 text-right">{fmtNum(bv.offDowntimeMinutes, 2)} / {fmtNum(bv.onDowntimeMinutes, 2)} min</td></tr>
+              <tr><td className="py-1 text-muted">Downtime avoided, AI vs manual runbook</td><td className="py-1 text-right font-semibold">{fmtNum(bv.downtimeMinutesAvoided, 2)} min</td></tr>
+              <tr><td className="py-1 pl-3 text-muted">… from automating the runbook (no AI)</td><td className="py-1 text-right">{fmtNum(bv.automationDowntimeMinutesAvoided, 2)} min</td></tr>
+              <tr><td className="py-1 pl-3 text-muted">… only AI delivered (AI vs automated rules)</td><td className="py-1 text-right font-semibold">{fmtNum(bv.aiSpecificDowntimeMinutesAvoided, 2)} min</td></tr>
+              <tr><td className="py-1 text-muted">Gross impact avoided, AI vs manual</td><td className="py-1 text-right font-semibold">{usd(bv.grossImpactAvoidedUsd)}</td></tr>
+              <tr><td className="py-1 text-muted">Gross impact attributable to AI itself</td><td className="py-1 text-right font-semibold" data-testid="ai-specific-usd">{usd(bv.aiSpecificGrossImpactAvoidedUsd)}</td></tr>
               <tr><td className="py-1 text-muted">AI usage cost</td><td className="py-1 text-right">{usd(bv.aiCostUsd)}</td></tr>
               <tr><td className="py-1 text-muted">Net value</td><td className="py-1 text-right">{usd(bv.netValueUsd)}</td></tr>
             </tbody>
@@ -211,7 +261,7 @@ function BusinessValue() {
                   <tr key={a.source} className="border-t border-border align-top">
                     <td className="py-1.5 pr-2 font-medium text-text">{a.source}<div className="font-normal text-muted">{a.measure}</div></td>
                     <td className="tabular py-1.5 pr-2">{a.value}</td>
-                    <td className="py-1.5 pr-2"><Chip tone={a.attribution === "measured" ? "info" : a.attribution === "uncertain" ? "warning" : "neutral"}>{a.attribution.replace("_", " ")}</Chip></td>
+                    <td className="py-1.5 pr-2"><Chip tone={a.attribution === "measured" ? "info" : a.attribution === "uncertain" || a.attribution === "assumption" ? "warning" : "neutral"}>{a.attribution.replace("_", " ")}</Chip></td>
                     <td className="py-1.5 text-text-2">{a.note}</td>
                   </tr>
                 ))}
@@ -311,12 +361,12 @@ function Interactive() {
           <Empty>No resolved incidents yet. Tip: load a golden scenario in the simulator, investigate with AI ON, approve, let it recover — then repeat with AI OFF.</Empty>
         ) : (
           <table className="tabular w-full min-w-[820px] text-xs">
-            <thead className="text-left text-muted"><tr><th className="px-2 py-1.5 font-medium">Scenario</th><th className="px-2 py-1.5 font-medium">Mode</th><th className="px-2 py-1.5 font-medium">Source</th><th className="px-2 py-1.5 text-right font-medium">Detect</th><th className="px-2 py-1.5 text-right font-medium">Diagnose</th><th className="px-2 py-1.5 text-right font-medium">Recover</th><th className="px-2 py-1.5 text-right font-medium">AI latency</th><th className="px-2 py-1.5 text-right font-medium">Human decision</th><th className="px-2 py-1.5 text-right font-medium">Retail breach</th><th className="px-2 py-1.5 text-right font-medium">Speed</th></tr></thead>
+            <thead className="text-left text-muted"><tr><th className="px-2 py-1.5 font-medium">Scenario</th><th className="px-2 py-1.5 font-medium">Workflow</th><th className="px-2 py-1.5 font-medium">Source</th><th className="px-2 py-1.5 text-right font-medium">Detect</th><th className="px-2 py-1.5 text-right font-medium">Diagnose</th><th className="px-2 py-1.5 text-right font-medium">Recover</th><th className="px-2 py-1.5 text-right font-medium">AI latency</th><th className="px-2 py-1.5 text-right font-medium">Human decision</th><th className="px-2 py-1.5 text-right font-medium">Retail breach</th><th className="px-2 py-1.5 text-right font-medium">Speed</th></tr></thead>
             <tbody>
               {runs.map((r) => (
                 <tr key={r.key} className="border-t border-border">
                   <td className="px-2 py-1.5">{r.scenarioLabel}<div className="text-[10px] text-muted">{r.incidentId}</div></td>
-                  <td className="px-2 py-1.5">{r.mode === "none" ? "not investigated" : r.mode === "ai_on" ? "AI ON" : "AI OFF"}</td>
+                  <td className="px-2 py-1.5">{r.mode === "none" ? "not investigated" : r.workflow === "manual_runbook" ? `Manual runbook (${Math.round((r.triageSeconds ?? 0) / 60)} min assumed)` : r.workflow === "automated_rules" || r.mode === "ai_off" ? "Automated rules" : "AI-assisted"}</td>
                   <td className="px-2 py-1.5">{r.diagnosisSource ? <SourceBadge source={r.diagnosisSource as DiagnosisSource} /> : "—"}</td>
                   <td className="px-2 py-1.5 text-right">{secs(r.metrics.timeToDetectionS)}</td>
                   <td className="px-2 py-1.5 text-right">{secs(r.metrics.timeToDiagnosisS)}</td>
@@ -344,7 +394,7 @@ function ComparisonPageInner() {
         <div className="max-w-3xl">
           <h1 className="text-lg font-semibold text-text">AI ON vs AI OFF — performance comparison <SimTag /></h1>
           <p className="mt-1 text-sm text-text-2">
-            AI OFF means the conventional rule-based investigator and runbook. It does <b>not</b> disable gateway safeguards: concurrency limits, timeouts, circuit breakers and the retail reservation run identically in both modes. No improvement is assumed — if AI does not outperform, this page shows that.
+            Three arms, same incident: a <b>manual runbook</b> (on-call engineer, with an <i>assumed</i> triage time), an <b>automated rule-based runbook</b> (no AI), and <b>AI-assisted</b> investigation. Gateway safeguards act immediately and identically in every arm. Comparing AI with automated rules isolates what AI itself adds; comparing it with the manual runbook mostly measures automation. If AI does not outperform, this page shows that.
           </p>
         </div>
         <div className="rounded-md border border-border bg-surface px-3 py-2 text-xs">

@@ -15,11 +15,11 @@ function fakeLlm(latencyMs: number, override?: (id: string) => InvestigationOutc
   return async (ctx, mode, fault) => {
     if (mode === "ai_off" || fault) return investigateIncident({ context: ctx, mode, provider: null, timeoutMs: 50, maxRetries: 0, fault });
     const d = override?.(ctx.incident?.id ?? "") ?? ruleBasedDiagnosis(ctx);
-    return { mode: "ai_on", source: "llm", status: "succeeded", provider: "mock", model: "mock", latencyMs, llmLatencyMs: latencyMs, startedAtWallMs: 0, completedAtWallMs: latencyMs, firstResponseMs: null, attempts: 1, errorCategory: null, llmError: null, usage: { promptTokens: 1000, completionTokens: 300, totalTokens: 1300 }, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: d };
+    return { mode: "ai_on", workflow: "ai_assisted", assumedTriageSeconds: 0, source: "llm", status: "succeeded", provider: "mock", model: "mock", latencyMs, llmLatencyMs: latencyMs, startedAtWallMs: 0, completedAtWallMs: latencyMs, firstResponseMs: null, attempts: 1, errorCategory: null, llmError: null, usage: { promptTokens: 1000, completionTokens: 300, totalTokens: 1300 }, fallbackUsed: false, faultInjected: null, validationNotes: [], diagnosis: d };
   };
 }
 const fallbackOnly: Investigator = (ctx, mode, fault) => investigateIncident({ context: ctx, mode, provider: null, timeoutMs: 50, maxRetries: 0, fault });
-const cfg = { goldenId: "GS-01", seed: 101, operatorDelaySeconds: 20, maxSeconds: 600, latencyTimeScale: 1, reinvestigateEverySeconds: 60, maxInvestigations: 3 };
+const cfg = { goldenId: "GS-01", seed: 101, operatorDelaySeconds: 20, maxSeconds: 600, latencyTimeScale: 1, reinvestigateEverySeconds: 60, maxInvestigations: 3, manualTriageSeconds: 0 };
 
 describe("AI ON vs AI OFF comparison", () => {
   it("17. both modes run from equivalent initial conditions", async () => {
@@ -109,5 +109,39 @@ describe("AI ON vs AI OFF comparison", () => {
     const g12 = getGolden("GS-12")!;
     const r12 = await runBenchmark(fakeLlm(900, () => g12.mockDiagnosis), [g12]);
     expect(r12.rows[0].on.score.policyRejected).toBe(2);
+  });
+
+  it("manual triage is an assumption applied to diagnosis only — protections are never delayed", async () => {
+    const res = await runPairedComparison({ ...cfg, manualTriageSeconds: 600, maxSeconds: 2400 }, fakeLlm(2500));
+    const breakerAt = (r: typeof res.off) => r.timeline.find((e) => e.kind === "breaker_opened")?.t;
+    expect(breakerAt(res.off)).toBeDefined();
+    expect(breakerAt(res.off)).toBe(breakerAt(res.rules));
+    expect(breakerAt(res.off)).toBe(breakerAt(res.on));
+    expect(res.off.metrics.timeToDetectionS).toBe(res.rules.metrics.timeToDetectionS);
+    // the manual arm's diagnosis is later by exactly the assumed triage
+    expect(res.off.metrics.timeToDiagnosisS! - res.rules.metrics.timeToDiagnosisS!).toBe(600);
+    expect(res.off.workflow).toBe("manual_runbook");
+    expect(res.rules.workflow).toBe("automated_rules");
+    expect(res.on.workflow).toBe("ai_assisted");
+    expect(res.notes.join(" ")).toMatch(/ASSUMED 10 min/);
+  });
+
+  it("sensitivity table: zero triage equals automated rules; advantage grows with the assumption", async () => {
+    const res = await runPairedComparison({ ...cfg, manualTriageSeconds: 600, maxSeconds: 2400 }, fakeLlm(2500));
+    expect(res.sensitivity.map((r) => r.triageSeconds)).toEqual([0, 60, 300, 600, 1200]);
+    const zero = res.sensitivity[0];
+    expect(zero.manualRecoveryS).toBe(res.rules.metrics.timeToRecoveryS);
+    const adv = res.sensitivity.map((r) => r.aiRecoveryAdvantageS!);
+    for (let i = 1; i < adv.length; i++) expect(adv[i]).toBeGreaterThanOrEqual(adv[i - 1]);
+  });
+
+  it("business value splits the AI-vs-manual saving into automation vs AI-specific", async () => {
+    const res = await runPairedComparison({ ...cfg, manualTriageSeconds: 600, maxSeconds: 2400 }, fakeLlm(2500));
+    const bv = computeBusinessValue({ pair: res, costPerDowntimeMinuteUsd: 4500, pricePerMillionTokensUsd: null });
+    expect(bv.automationDowntimeMinutesAvoided + bv.aiSpecificDowntimeMinutesAvoided).toBeCloseTo(bv.downtimeMinutesAvoided, 9);
+    // With a rule-equivalent "LLM", AI adds nothing over automated rules: the saving is automation.
+    expect(bv.aiSpecificDowntimeMinutesAvoided).toBeLessThanOrEqual(0);
+    expect(bv.automationDowntimeMinutesAvoided).toBeGreaterThan(5);
+    expect(bv.attribution.find((a) => a.source.startsWith("Automating"))?.attribution).toBe("assumption");
   });
 });

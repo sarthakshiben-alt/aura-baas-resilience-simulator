@@ -44,6 +44,18 @@ function AiToggle() {
         {live ? <Bot className="h-3.5 w-3.5" /> : <Cpu className="h-3.5 w-3.5" />}
         {sim.aiStatus === null ? "checking…" : live ? `${sim.aiStatus.model}` : "Live AI not configured → rule-based fallback"}
       </span>
+      {!on ? (
+        <label className="flex items-center gap-1 border-l border-border pl-2 text-[11px] text-text-2" title="ASSUMED time for an on-call engineer to triage manually (simulated minutes). 0 = runbook automated without AI.">
+          manual triage
+          <Select value={sim.manualTriageMinutes} onChange={(e) => sim.setManualTriageMinutes(Number(e.target.value))} className="h-7 px-1 text-[11px]" aria-label="Assumed manual triage minutes" data-testid="triage-minutes">
+            {[0, 1, 5, 10, 20].map((m) => (
+              <option key={m} value={m}>
+                {m === 0 ? "0 (automated)" : `${m} min`}
+              </option>
+            ))}
+          </Select>
+        </label>
+      ) : null}
     </div>
   );
 }

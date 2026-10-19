@@ -126,21 +126,31 @@ export function GuidedDemo() {
         </Button>
       );
       break;
-    case 4:
+    case 4: {
       title = "Act 3 — Investigate";
+      const triage = sim.manualTriageMinutes;
       body = (
         <>
-          <p>
-            AI assistance is <b>{sim.aiMode === "ai_on" ? "ON" : "OFF"}</b>. {sim.aiMode === "ai_on" ? (sim.aiStatus?.configured ? `The configured LLM (${sim.aiStatus.model}) receives the actual simulated telemetry.` : "Live AI is not configured on this deployment, so the request will be answered by the rule-based fallback — and labelled as such.") : "The conventional rule-based investigator and runbook will be used."}
-          </p>
-          <p className="text-xs text-muted">The simulation keeps running while the investigation is in flight. Measured latency is converted into simulated time.</p>
+          {sim.aiMode === "ai_on" ? (
+            <p>
+              AI assistance is <b>ON</b>. When monitoring detected the incident, an investigation started automatically.{" "}
+              {sim.aiStatus?.configured ? `The configured LLM (${sim.aiStatus.model}) receives the actual simulated telemetry.` : "Live AI is not configured here, so the rule-based fallback answers — and is labelled as such."}
+            </p>
+          ) : triage > 0 ? (
+            <p>
+              AI assistance is <b>OFF</b>. Conventional response: the on-call engineer was paged at detection. We <b>assume</b> they need <b>{triage} min</b> (simulated) to open dashboards and work the runbook before a diagnosis. That number is an input assumption, not data — the comparison page tests how much it drives the result.
+            </p>
+          ) : (
+            <p>AI assistance is <b>OFF</b> with triage set to 0: the rule-based runbook runs automatically (no AI, no human triage).</p>
+          )}
+          <p className="text-xs text-muted">Either way, the circuit breaker and concurrency limits are already protecting the platform — investigation only decides the remediation. The simulation keeps running while it&apos;s in flight.</p>
           {diag ? (
             <div className="flex items-center gap-2 text-xs">
               Diagnosis returned: <SourceBadge source={diag.source} status={diag.status} />
             </div>
           ) : pending ? (
             <div className="flex items-center gap-2 text-xs text-muted">
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Investigating…
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> {sim.aiMode === "ai_off" && triage > 0 ? "Manual triage in progress…" : "Investigating…"}
             </div>
           ) : null}
         </>
@@ -149,12 +159,19 @@ export function GuidedDemo() {
         <Button variant="primary" onClick={() => go(5)}>
           Next: review the recommendation
         </Button>
+      ) : pending ? (
+        sim.aiMode === "ai_off" && triage > 0 ? (
+          <Button variant="secondary" onClick={() => sim.setSpeed(20)}>
+            Fast-forward (20×)
+          </Button>
+        ) : null
       ) : (
-        <Button variant="primary" disabled={!inc || pending} onClick={() => inc && void sim.investigate(inc.id)} data-testid="guide-investigate">
+        <Button variant="primary" disabled={!inc} onClick={() => inc && void sim.investigate(inc.id)} data-testid="guide-investigate">
           Run investigation
         </Button>
       );
       break;
+    }
     case 5: {
       title = "Act 4 — Human approval";
       const esc = inc?.recommendations.find((r) => r.actionId === "escalate_to_partner" && r.approval === "pending");
@@ -218,10 +235,10 @@ export function GuidedDemo() {
       const r = sim.paired.result;
       body = (
         <>
-          <p>A paired run replays the same scenario twice from identical initial conditions — AI OFF (rule-based runbook) and AI ON (configured LLM) — with the same protections and a labelled simulated operator.</p>
+          <p>A paired run replays the same scenario three times from identical initial conditions: a <b>manual runbook</b> (with your assumed {sim.manualTriageMinutes} min triage), an <b>automated rule-based runbook</b> (no AI) and <b>AI-assisted</b> — same protections, same labelled simulated operator.</p>
           {r ? (
             <p className="text-xs">
-              Recovery: AI OFF {fmtSecs(r.off.metrics.timeToRecoveryS)}, AI ON {fmtSecs(r.on.metrics.timeToRecoveryS)}. {r.on.metrics.diagnosisSource !== "llm" ? "AI ON used the rule-based fallback, so this run does not measure AI value." : "See the comparison table for where any difference came from."}
+              Recovery: manual {fmtSecs(r.off.metrics.timeToRecoveryS)}, automated rules {fmtSecs(r.rules.metrics.timeToRecoveryS)}, AI {fmtSecs(r.on.metrics.timeToRecoveryS)}. Compare AI with <b>automated rules</b> to see what AI itself adds; the gap to the manual runbook is mostly the triage assumption. {r.on.metrics.diagnosisSource !== "llm" ? "AI used the rule-based fallback in this run, so it does not measure AI value." : ""}
             </p>
           ) : sim.paired.loading ? (
             <p className="flex items-center gap-2 text-xs text-muted">
@@ -235,7 +252,7 @@ export function GuidedDemo() {
           Finish
         </Button>
       ) : (
-        <Button variant="primary" disabled={sim.paired.loading} onClick={() => void sim.runPaired({ goldenId: "GS-01" })}>
+        <Button variant="primary" disabled={sim.paired.loading} onClick={() => void sim.runPaired({ goldenId: "GS-01", manualTriageMinutes: sim.manualTriageMinutes })}>
           Run paired comparison (GS-01)
         </Button>
       );
@@ -245,7 +262,7 @@ export function GuidedDemo() {
       title = "That's the full loop";
       body = (
         <>
-          <p>Deterministic controls protected the platform without AI. The investigation layer — AI or rule-based — only advises, the policy engine validates, and a human approves.</p>
+          <p>Deterministic controls protected the platform without AI. Faster diagnosis comes mostly from <b>automating</b> the runbook — which a rule engine does without AI. AI adds value where rules can&apos;t classify the evidence (see GS-18 in the benchmark), and it only ever advises: the policy engine validates and a human approves.</p>
           <p>Whether AI improves outcomes depends on the scenario. The benchmark on the comparison page tests it on the golden scenarios, including ambiguous and failure cases.</p>
         </>
       );

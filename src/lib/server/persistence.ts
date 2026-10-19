@@ -101,6 +101,8 @@ export function buildBundle(sessionId: string, state: SimState): IncidentBundle 
         model: iv.model,
         source: iv.source,
         mode: iv.mode,
+        workflow: iv.workflow ?? (iv.mode === "ai_on" ? "ai_assisted" : "automated_rules"),
+        assumed_triage_seconds: iv.assumedTriageSeconds ?? 0,
         status: iv.status,
         started_at: iso(iv.startedAtWallMs),
         completed_at: iso(iv.completedAtWallMs),

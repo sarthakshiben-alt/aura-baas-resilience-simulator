@@ -18,6 +18,8 @@ const Body = z.object({
   mode: z.enum(["ai_on", "ai_off"]),
   fault: z.enum(["timeout", "malformed"]).nullable().optional(),
   speed: z.number().min(1).max(60),
+  /** AI OFF only: ASSUMED manual triage time in simulated minutes (0 = automated rules). */
+  triageMinutes: z.number().min(0).max(30).optional(),
 });
 
 /**
@@ -39,17 +41,21 @@ export async function POST(req: Request, ctx: RouteContext<"/api/incidents/[id]/
     const context = buildIncidentContext(state, id);
     const outcome = await serverInvestigator()(context, body.mode, body.mode === "ai_on" ? body.fault ?? null : null);
     const latencyTicks = Math.max(1, Math.ceil((outcome.latencyMs / 1000) * body.speed));
+    // Conventional workflow: an on-call engineer is paged and works the runbook. The triage time is a
+    // disclosed ASSUMPTION in simulated seconds (not scaled by speed). Gateway protections are unaffected.
+    const triageTicks = body.mode === "ai_off" ? Math.round((body.triageMinutes ?? 0) * 60) : 0;
+    const workflow = body.mode === "ai_on" ? "ai_assisted" : triageTicks > 0 ? "manual_runbook" : "automated_rules";
     const entry: WorkflowEntry = {
       kind: "investigation",
       entryId: newEntryId("INV"),
       sessionId: claims.sid,
       incidentId: id,
       requestedAt: log.tick,
-      applyAt: log.tick + latencyTicks,
-      data: { ...outcome, speed: body.speed },
+      applyAt: log.tick + triageTicks + latencyTicks,
+      data: { ...outcome, workflow, assumedTriageSeconds: triageTicks, speed: body.speed },
     };
     runAfter(() => persistState(claims.sid, state));
-    return json({ signed: signEntry(serverEnv().sessionSecret, entry), latencyTicks });
+    return json({ signed: signEntry(serverEnv().sessionSecret, entry), latencyTicks, triageTicks });
   } catch (e) {
     return errorResponse(e, "incidents/investigate");
   }

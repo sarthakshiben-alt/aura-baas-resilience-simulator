@@ -43,7 +43,7 @@ It is not a chatbot or a static dashboard. User actions change a deterministic s
 
 Screenshots (synthetic data): [investigation](docs/screenshots/investigation.png) · [simulator](docs/screenshots/simulator.png) · [comparison](docs/screenshots/comparison.png).
 
-The **guided demo** (3–5 minutes) walks through one incident: baseline → Partner A slowdown → the deterministic breaker contains it → investigate → approve escalation → verified recovery → paired comparison.
+The **guided demo** (3–5 minutes) walks through one incident: baseline → Partner A slowdown → the deterministic breaker contains it → investigation starts automatically (AI ON) or the on-call engineer is paged and triages for an assumed N minutes (AI OFF) → approve escalation → verified recovery → three-way comparison.
 
 ## Quick start
 
@@ -111,7 +111,8 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 
 ## Measuring AI value fairly
 
-- **AI OFF never disables safeguards.** It means the rule-based investigator plus runbook. The same policy checks, approvals and engine apply.
+- **AI OFF never disables safeguards.** Gateway protections act immediately in every mode. AI OFF uses the conventional workflow: an on-call engineer is paged at detection and works the runbook after an **assumed** triage time (default 10 simulated minutes, editable 0–30, shown next to the AI toggle). AI ON auto-investigates on detection. A human approves actions in both.
+- **Three arms, not two.** Paired runs compare **manual runbook** · **automated rules (no AI)** · **AI-assisted**. "AI vs manual" mostly measures *automation*; "AI vs automated rules" measures what AI itself adds. A sensitivity table shows how the AI advantage depends on the triage assumption (0, 1, 5, 10, 20 min).
 - **Approach A — paired runs** (`src/lib/comparison/paired.ts`): same seed, scenario, initial conditions and protections. Measured AI latency is converted to simulated seconds (1:1 by default, minimum one tick for both modes). A **labelled simulated operator** approves every policy-valid recommendation after the same fixed delay, and re-investigates every 60 s while unresolved, in both modes. An uncontrolled counterfactual isolates what the deterministic controls contribute.
 - **Approach B — benchmark** (`src/lib/comparison/benchmark.ts`): both investigators score the identical context for every golden scenario against expected causes and permitted, unnecessary and forbidden actions, plus a numeric evidence-grounding heuristic.
 - **Interactive runs:** real human decision time is recorded separately from AI latency.
@@ -128,6 +129,7 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 | Unsafe recommendations blocked by policy | 0 proposed | 1 proposed, 1 blocked |
 | Median latency | ~1 ms | 3.2 s |
 
+0. **The triage assumption drives the headline.** GS-01 with 10 min assumed triage (simulated; AI arm modelled at the measured 3.2 s median Groq latency with rule-quality diagnosis): manual runbook recovers at 728 s, automated rules at 128 s, AI at 168 s. "AI vs manual" looks like ~$42k avoided at $4,500/min, but **all** of it comes from automating the runbook. AI's marginal effect over automated rules on that scenario was slightly negative (its latency missed a breaker probe window).
 1. **Deterministic controls deliver most of the protection.** Scenario A over 180 s: retail breach 0 s with protections vs 164 s without; neighbour impairment 0 vs 656 partner-seconds.
 2. **AI rarely wins on speed.** Breaker cycles absorb seconds of diagnosis delay; paired runs showed identical recovery for a 2 s slower diagnosis.
 3. **AI adds value only where rules are wrong — and fails in risky ways.** It solved the pre-registered rule gap (GS-18) but was overconfident on ambiguous evidence (GS-09) and misread protective fast-fails as partner errors (GS-02, GS-15). The policy engine blocked its one unsafe proposal.

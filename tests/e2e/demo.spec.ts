@@ -27,7 +27,7 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await expect(page.getByTestId("row-partner-a")).toContainText(/Protected|Degraded/);
     await guide.getByRole("button", { name: /Next: investigate/ }).click();
     await page.waitForURL(/investigation/);
-    await page.getByTestId("guide-investigate").click();
+    // AI ON auto-investigates on detection; no click needed.
     await expect(page.getByTestId("diagnosis")).toContainText("Rule-based fallback");
     await expect(page.getByTestId("diagnosis")).not.toContainText("Real LLM response");
     await guide.getByRole("button", { name: /review the recommendation/ }).click();
@@ -38,6 +38,7 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await page.waitForURL(/comparison/);
     await guide.getByRole("button", { name: /Run paired comparison/ }).click();
     await expect(page.getByTestId("paired-result")).toContainText("AI ON used fallback");
+    await expect(page.getByTestId("sensitivity-table")).toContainText("10 min");
     expect(errors).toEqual([]);
   });
 
@@ -46,11 +47,13 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await page.getByTestId("reset-scenario").click();
     await page.getByTestId("ai-toggle").getByRole("switch").click();
     await expect(page.getByTestId("ai-toggle")).toContainText("OFF");
+    await page.getByTestId("triage-minutes").selectOption("0");
     await page.getByTestId("start-partner_slowdown").click();
     await page.goto("/investigation");
     await expect(page.getByTestId("incident-id")).toHaveText("INC-001", { timeout: 30_000 });
-    await page.getByTestId("run-investigation").click();
+    // AI OFF with 0 min triage = automated rules, started automatically on detection.
     await expect(page.getByTestId("diagnosis")).toContainText("Rule-based (conventional)");
+    await expect(page.getByTestId("diagnosis")).toContainText("Automated rules (no AI)");
     const recs = page.getByTestId("recommendation");
     await expect(recs.first()).toBeVisible();
     await recs.first().getByTestId("reject").click();
@@ -69,5 +72,17 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     const bad = await request.post("/api/demo/state", { data: { session: "x".repeat(20), log: { v: 1, seed: 1, tick: 0, commands: [] } } });
     expect(bad.status()).toBe(401);
     expect(await bad.text()).not.toMatch(/at .*\.ts|stack/i);
+  });
+
+  test("AI OFF with manual triage shows the assumed delay while protections act immediately", async ({ page }) => {
+    await page.goto("/simulator");
+    await page.getByTestId("reset-scenario").click();
+    await page.getByTestId("ai-toggle").getByRole("switch").click();
+    await page.getByTestId("triage-minutes").selectOption("10");
+    await page.getByTestId("start-partner_slowdown").click();
+    await page.goto("/investigation");
+    await expect(page.getByTestId("investigation-pending")).toContainText("assumed 10 min", { timeout: 30_000 });
+    await page.goto("/");
+    await expect(page.getByTestId("row-partner-a")).toContainText("Protected", { timeout: 30_000 });
   });
 });

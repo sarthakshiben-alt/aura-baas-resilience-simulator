@@ -206,4 +206,21 @@ describe("API routes", () => {
     for (let i = 0; i < 14; i++) last = (await call(investigate as never, { session, log, mode: "ai_off", speed: 1 }, { id: "INC-001" })).status;
     expect(last).toBe(429);
   });
+
+  it("AI OFF manual triage delays only the runbook result, by the assumed simulated time", async () => {
+    const { session, log } = await sessionWithIncident();
+    const manual = await call(investigate as never, { session, log, mode: "ai_off", speed: 5, triageMinutes: 10 }, { id: "INC-001" });
+    expect(manual.status).toBe(200);
+    const e = manual.body.signed.entry as Json;
+    expect(e.applyAt - e.requestedAt).toBeGreaterThanOrEqual(600);
+    expect(e.data.workflow).toBe("manual_runbook");
+    expect(e.data.assumedTriageSeconds).toBe(600);
+    const auto = await call(investigate as never, { session, log, mode: "ai_off", speed: 5, triageMinutes: 0 }, { id: "INC-001" });
+    expect((auto.body.signed.entry as Json).data.workflow).toBe("automated_rules");
+    const ai = await call(investigate as never, { session, log, mode: "ai_on", speed: 5, triageMinutes: 10 }, { id: "INC-001" });
+    const ae = ai.body.signed.entry as Json;
+    expect(ae.data.workflow).toBe("ai_assisted");
+    expect(ae.data.assumedTriageSeconds).toBe(0); // triage never applies to AI
+    expect((await call(investigate as never, { session, log, mode: "ai_off", speed: 5, triageMinutes: 999 }, { id: "INC-001" })).status).toBe(422);
+  });
 });

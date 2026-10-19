@@ -269,6 +269,13 @@ export interface TimelineEvent {
 
 export type InvestigationMode = "ai_on" | "ai_off";
 export type DiagnosisSource = "llm" | "rule_based_fallback" | "rule_based";
+/**
+ * How the investigation was carried out:
+ * - manual_runbook:   conventional on-call engineer applies the runbook after an ASSUMED triage time
+ * - automated_rules:  rule-based runbook runs automatically on request/detection (no AI)
+ * - ai_assisted:      configured LLM investigates (with labelled fallback)
+ */
+export type InvestigationWorkflow = "manual_runbook" | "automated_rules" | "ai_assisted";
 
 export type ValidationStatus = "valid" | "valid_with_warnings" | "rejected";
 export type ApprovalStatus =
@@ -336,6 +343,9 @@ export interface InvestigationRecord {
   id: string;
   incidentId: string;
   mode: InvestigationMode;
+  workflow: InvestigationWorkflow;
+  /** Simulated seconds of ASSUMED human triage before the runbook result (manual_runbook only; else 0). */
+  assumedTriageSeconds: number;
   source: DiagnosisSource;
   status: "succeeded" | "fallback" | "failed";
   requestedAt: number;

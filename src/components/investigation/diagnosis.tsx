@@ -22,10 +22,18 @@ function List({ title, items, tone }: { title: string; items: string[]; tone?: s
   );
 }
 
+export const WORKFLOW_LABEL: Record<string, string> = {
+  manual_runbook: "Manual runbook (conventional)",
+  automated_rules: "Automated rules (no AI)",
+  ai_assisted: "AI-assisted",
+};
+
 export function InvestigationMeta({ iv }: { iv: InvestigationRecord }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
       <SourceBadge source={iv.source} status={iv.status} />
+      {iv.workflow ? <span className="font-medium text-text-2">{WORKFLOW_LABEL[iv.workflow]}</span> : null}
+      {iv.assumedTriageSeconds ? <span title="Disclosed assumption, not measured">assumed manual triage: {Math.round(iv.assumedTriageSeconds / 60)} min (simulated)</span> : null}
       <span>{iv.mode === "ai_on" ? "AI assistance ON" : "AI assistance OFF"}</span>
       <span>provider: {iv.provider}{iv.model ? ` / ${iv.model}` : ""}</span>
       <span title="Wall-clock time measured by the server">investigation wall time: {fmtMs(iv.latencyMs)}</span>
@@ -65,8 +73,17 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
       <div className="space-y-3 p-4">
         {pending ? (
           <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/5 px-3 py-2 text-xs text-info-text" data-testid="investigation-pending">
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-            Investigation in progress ({pending.mode === "ai_on" ? "AI ON" : "AI OFF"}) — {((Math.max(now, pending.startedWall) - pending.startedWall) / 1000).toFixed(1)} s elapsed. The simulation and gateway protections continue independently.
+            <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+            {pending.triageSeconds > 0 ? (
+              <span>
+                {pending.auto ? "Incident detected → on-call engineer paged. " : ""}Manual triage in progress: an <b>assumed {Math.round(pending.triageSeconds / 60)} min</b> (simulated) to open dashboards and work the runbook
+                {pending.readyAt !== null ? <> — runbook diagnosis due at {fmtSimTime(pending.readyAt)} (in {Math.max(0, pending.readyAt - sim.state.tick)} sim s)</> : null}. Gateway protections are already acting on their own. Tip: fast-forward with the speed control.
+              </span>
+            ) : (
+              <span>
+                {pending.auto ? "Incident detected → investigation started automatically. " : ""}Investigation in progress ({pending.mode === "ai_on" ? "AI ON" : "automated rules"}) — {((Math.max(now, pending.startedWall) - pending.startedWall) / 1000).toFixed(1)} s elapsed. The simulation and gateway protections continue independently.
+              </span>
+            )}
           </div>
         ) : null}
         {err ? (
