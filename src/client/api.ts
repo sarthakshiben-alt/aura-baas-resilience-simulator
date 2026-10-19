@@ -8,6 +8,7 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public retryAfterS: number | null = null,
   ) {
     super(message);
   }
@@ -21,7 +22,10 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal): Promis
     throw new ApiError(0, "network_error", "Network error — the server could not be reached.");
   }
   const data = (await res.json().catch(() => ({}))) as { error?: { code: string; message: string } } & T;
-  if (!res.ok) throw new ApiError(res.status, data.error?.code ?? "error", data.error?.message ?? `Request failed (${res.status})`);
+  if (!res.ok) {
+    const ra = Number(res.headers.get("retry-after"));
+    throw new ApiError(res.status, data.error?.code ?? "error", data.error?.message ?? `Request failed (${res.status})`, Number.isFinite(ra) && ra > 0 ? ra : null);
+  }
   return data;
 }
 

@@ -145,6 +145,12 @@ async function runMode(cfg: PairedRunConfig, arm: Arm, investigate: Investigator
   let humanStepped = false;
   let humanDiagnosedAt: number | null = null;
 
+  const blastRadiusContained = () => {
+    const st = runner.state;
+    const g = st.history.gateway.at(-1);
+    const others = (["partner-a", "partner-b", "partner-c", "partner-d", "partner-e"] as const).filter((p) => p !== inc?.primaryEntityId);
+    return (g?.retailHealth ?? "healthy") === "healthy" && others.every((p) => ["healthy", "recovering"].includes(st.history.entities[p].at(-1)?.status ?? "healthy"));
+  };
   const remediationStarted = () => runner.state.scenarioRuns.some((r) => r.perturbations.some((p) => p.remediationAt !== null || p.endReason === "remediated"));
 
   const approveAll = (entryId: string, tag: string) => {
@@ -273,6 +279,9 @@ async function runMode(cfg: PairedRunConfig, arm: Arm, investigate: Investigator
       const until = Math.min(endAt, runner.state.tick + cfg.reinvestigateEverySeconds);
       advUntil(() => isResolved(inc), until);
       if (isResolved(inc) || runner.state.tick >= endAt) break;
+      // A fix is in flight and nothing else is being hurt: wait for it rather than re-asking (same in every arm).
+      // If retail or other partners are still impaired, keep investigating — containment may still be needed.
+      if (remediationStarted() && blastRadiusContained()) break;
     }
     advUntil(() => isResolved(inc), endAt);
   }
@@ -348,7 +357,7 @@ export async function runPairedComparison(cfg: PairedRunConfig, investigate: Inv
     "Automated rules arm: the same rule-based runbook runs on detection with no AI. It separates the value of automation from the value of AI.",
     `Simulated operator: approves every policy-valid recommendation after ${cfg.operatorDelaySeconds} sim seconds in EVERY arm. This is not real human behaviour.`,
     `Measured investigation wall-clock latency is converted to simulated seconds at ${cfg.latencyTimeScale} sim-s per real second (minimum 1 tick).`,
-    `If unresolved, the incident is re-investigated every ${cfg.reinvestigateEverySeconds} sim seconds (max ${cfg.maxInvestigations} investigations), identically in both modes.`,
+    `If unresolved and no fix is in flight, the incident is re-investigated every ${cfg.reinvestigateEverySeconds} sim seconds (max ${cfg.maxInvestigations} investigations), identically in every arm.`,
     `When an arm can only recommend paging a human, a SIMULATED on-call engineer finds the true cause after the assumed ${Math.round(cfg.manualTriageSeconds / 60)} min triage time and escalates it — the same in every arm. This is a modelling assumption.`,
   ];
   if (on.metrics.diagnosisSource !== "llm") notes.push(`AI ON run did not receive a real LLM response (${on.metrics.errorCategory ?? "unknown"}); it used the rule-based fallback, so this pair does not measure AI value.`);

@@ -266,9 +266,23 @@ type ArmKey = keyof typeof ARM_STYLE;
 const ARMS: ArmKey[] = ["off", "rules", "on"];
 const fixedByArm = (r: PairedRunResult, k: ArmKey) => !!r.groundTruth.primaryEntityId && r[k].approvedActions.includes(`escalate_to_partner→${r.groundTruth.primaryEntityId}`) && r[k].humanDiagnosedAt === null;
 
+/** Seconds left on the AI provider cool-down; re-renders every second while counting. */
+function useCooldown() {
+  const sim = useSim();
+  const [, force] = useState(0);
+  const left = sim.aiCooldownLeftS();
+  useEffect(() => {
+    if (left <= 0) return;
+    const id = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [left]);
+  return left;
+}
+
 function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; setCost: (v: number) => void; scenario: FeaturedGoldenId; setScenario: (v: FeaturedGoldenId) => void }) {
   const sim = useSim();
   const r = sim.pairedByGolden[scenario] ?? null;
+  const cooldown = useCooldown();
   const reroll = () => void sim.runPaired({ goldenId: "GS-19", seed: 1 + Math.floor(Math.random() * 2_000_000_000), operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes: sim.manualTriageMinutes });
   return (
     <Card data-testid="sla-penalty">
@@ -299,13 +313,21 @@ function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; se
             {FEATURED_GOLDEN.find((g) => g.id === scenario)?.blurb} <span className="text-muted">${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</span>
           </p>
           {scenario === "GS-19" ? (
-            <Button size="sm" variant="primary" onClick={reroll} disabled={sim.paired.loading} data-testid="reroll-mystery">
-              {sim.paired.loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : "🎲"} Roll a new mystery
+            <Button size="sm" variant="primary" onClick={reroll} disabled={sim.paired.loading || cooldown > 0} data-testid="reroll-mystery">
+              {sim.paired.loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : "🎲"} {cooldown > 0 ? `AI cooling down… ${cooldown}s` : "Roll a new mystery"}
             </Button>
           ) : null}
         </div>
         {!r ? (
-          <Empty>{sim.paired.loading ? "⏳ Running the same incident three ways (manual, automated rules, AI)… a few seconds." : sim.paired.error ? `Comparison failed: ${sim.paired.error}` : "Getting ready…"}</Empty>
+          <Empty>
+            {sim.paired.loading
+              ? "⏳ Running the same incident three ways (manual, automated rules, AI)… a few seconds."
+              : cooldown > 0
+                ? `⏳ The free AI tier needs a breather — this one starts by itself in ${cooldown}s.`
+                : sim.paired.error
+                  ? `Comparison failed: ${sim.paired.error}`
+                  : "Getting ready…"}
+          </Empty>
         ) : (
           <div className={cn(sim.paired.loading && "opacity-50 transition-opacity")}>
             <SlaBody cost={cost} r={r} scenario={scenario} />
@@ -395,7 +417,14 @@ function SlaBody({ cost, r, scenario }: { cost: number; r: PairedRunResult; scen
         <li data-testid="ai-verdict">
           <b className="text-text">AI on top of those rules</b>{" "}
           {!aiLive ? (
-            <>couldn&apos;t be measured in this run — the AI provider was unavailable, so it fell back to the same rules.{mystery ? " Roll again in a minute." : ""}</>
+            <>
+              couldn&apos;t be measured in this run — the AI provider {r.on.metrics.errorCategory === "rate_limited" ? "hit its usage limit" : "was unavailable"}, so it fell back to the same rules.
+              {r.on.metrics.errorCategory === "rate_limited" ? (
+                <span className="block text-xs text-muted">
+                  Groq&apos;s free tier allows ≈8,000 tokens a minute and 200,000 a day per model (≈30–40 AI investigations a day). If waiting a minute doesn&apos;t help, the daily allowance is used up — it refills gradually over 24 h.
+                </span>
+              ) : null}
+            </>
           ) : aiExtra > 0 ? (
             <>
               saves a further <b className="text-good-text">{min1(aiExtra)} · {usd0(pen(aiExtra))}</b>.{mystery ? " 🎉 This is the job AI is for: the rulebook was stumped, the AI connected the weak signals." : ""}
@@ -554,9 +583,13 @@ function ComparisonPageInner() {
   const [slaScenario, setSlaScenario] = useState<FeaturedGoldenId>("GS-01");
   const { ready, paired, manualTriageMinutes } = sim;
   const cached = !!sim.pairedByGolden[slaScenario];
+  const cooldown = useCooldown();
   useEffect(() => {
-    if (ready && !cached && !paired.loading && !paired.error) void sim.runPaired({ goldenId: slaScenario, operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes });
-  }, [sim, ready, cached, slaScenario, paired.loading, paired.error, manualTriageMinutes]);
+    if (!ready || cached || paired.loading || cooldown > 0) return;
+    // A previous failure (e.g. rate limit) is retried automatically once the cool-down is over.
+    sim.clearPairedError();
+    void sim.runPaired({ goldenId: slaScenario, operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes });
+  }, [sim, ready, cached, slaScenario, paired.loading, cooldown, manualTriageMinutes]);
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

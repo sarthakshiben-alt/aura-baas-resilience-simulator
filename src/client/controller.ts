@@ -74,6 +74,17 @@ export class SimController {
   /** Guided demo step (null = free exploration). */
   guideStep: number | null = null;
   paired: { loading: boolean; error: string | null; result: (PairedRunResult & { id: string }) | null } = { loading: false, error: null, result: null };
+  /** Wall-clock ms until which AI calls are expected to be rate-limited (free-tier provider budget). */
+  aiCooldownUntil = 0;
+  aiCooldownLeftS() {
+    return Math.max(0, Math.ceil((this.aiCooldownUntil - Date.now()) / 1000));
+  }
+  clearPairedError() {
+    if (this.paired.error) {
+      this.paired = { ...this.paired, error: null };
+      this.emit();
+    }
+  }
   /** Latest paired result per golden scenario, so switching scenarios doesn't re-run (and re-bill) the AI. */
   pairedByGolden: Record<string, PairedRunResult & { id: string }> = {};
   benchmark: { loading: boolean; error: string | null; result: (BenchmarkResult & { id: string }) | null } = { loading: false, error: null, result: null };
@@ -440,8 +451,14 @@ export class SimController {
     try {
       const result = await api.paired(session, body);
       this.paired = { loading: false, error: null, result };
+      // Free-tier provider budget (Groq: ~8k tokens/min, refilled continuously): wait for what this run spent.
+      const used = result.on.metrics.tokens ?? 0;
+      if (used > 0) this.aiCooldownUntil = Date.now() + Math.min(60, Math.ceil((used / 8000) * 60)) * 1000;
+      if (result.on.metrics.errorCategory === "rate_limited") this.aiCooldownUntil = Date.now() + 40_000;
       if (typeof body.goldenId === "string") this.pairedByGolden = { ...this.pairedByGolden, [body.goldenId]: result };
     } catch (e) {
+      // Back off before any automatic retry: the server's own retry-after on 429, otherwise 15 s.
+      this.aiCooldownUntil = Date.now() + (e instanceof ApiError && e.status === 429 ? (e.retryAfterS ?? 30) : 15) * 1000;
       this.paired = { ...this.paired, loading: false, error: e instanceof ApiError ? e.message : "Comparison failed" };
     }
     this.emit();
