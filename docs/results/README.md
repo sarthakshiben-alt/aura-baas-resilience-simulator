@@ -66,3 +66,15 @@ Artifact: [`paired-2026-10-19-live-groq-qwen3.8-27b.json`](paired-2026-10-19-liv
 5. **Operational reality:** Groq free tier allows roughly one investigation per minute at this prompt size; p50 3.2 s, worst cases hit the 30 s budget.
 
 **Product conclusion:** deterministic controls carry the resilience; AI is a second-opinion investigator for cases rules can't classify, never an authority. Candidate improvements (each needs a new, pre-registered evaluation run): clarify in the context that `rejectedByControlsPct` is protection, not partner failure; require the model to justify confidence above 0.5 on multi-partner anomalies.
+
+## Mystery incident (GS-19), live paired runs — 2026-10-19
+
+Local server, Groq `qwen/qwen3.8-27b`, 10 min assumed manual triage, operator delay 20 s. Seeds 119, 4242, 777 (all three rolled Partner C as the failing partner; 400 random rolls spread evenly over all five partners). SLA = seconds the affected partner was outside healthy thresholds.
+
+| Seed | Manual runbook | Automated rules (rules stumped → human paged at 0:36, finds it at 10:36) | AI-assisted | AI top cause |
+|---|---|---|---|---|
+| 119 | 1295 s | 695 s | 97 s | partner_traffic_surge ✗ (but escalated the right partner) |
+| 4242 | 1295 s | 695 s | 98 s | partner_downstream_latency ✓ |
+| 777 | 1294 s | 694 s | 96 s | partner_traffic_surge ✗ (but escalated the right partner) |
+
+Same session also ran GS-01 (rules 134 s, AI 134 s — tie) and GS-05 (AI rate-limited → fallback; not a measurement).

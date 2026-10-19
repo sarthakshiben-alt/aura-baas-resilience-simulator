@@ -27,6 +27,8 @@ export interface RunMetrics {
   partnerImpactSeconds: number;
   partnerDowntimeSeconds: number;
   primaryDowntimeSeconds: number;
+  /** Seconds the primary service was outside its healthy thresholds (slow, erroring or blocked) — what an SLA penalises. */
+  primarySlaBreachSeconds: number;
   diagnosisSource: string | null;
   fallbackUsed: boolean;
   errorCategory: string | null;
@@ -63,6 +65,7 @@ export function incidentMetrics(state: SimState, inc: Incident | null, windowSta
       partnerImpactSeconds: 0,
       partnerDowntimeSeconds: 0,
       primaryDowntimeSeconds: 0,
+      primarySlaBreachSeconds: 0,
       diagnosisSource: null,
       fallbackUsed: false,
       errorCategory: null,
@@ -101,6 +104,7 @@ export function incidentMetrics(state: SimState, inc: Incident | null, windowSta
     partnerImpactSeconds: sum(inc.partnerImpactSeconds),
     partnerDowntimeSeconds: sum(inc.partnerDowntimeSeconds),
     primaryDowntimeSeconds: inc.partnerDowntimeSeconds[inc.primaryEntityId] ?? 0,
+    primarySlaBreachSeconds: inc.partnerImpactSeconds[inc.primaryEntityId] ?? 0,
     diagnosisSource: first?.source ?? null,
     fallbackUsed: inc.investigations.some((i) => i.fallbackUsed),
     errorCategory: first?.errorCategory ?? null,

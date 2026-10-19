@@ -229,6 +229,8 @@ export interface ScenarioRun {
   startedAt: number;
   stoppedAt: number | null;
   perturbations: PerturbationRuntime[];
+  /** Randomised scenarios only: what was rolled. Never sent to investigators. */
+  groundTruthFactors?: string[];
 }
 
 export type TimelineKind =

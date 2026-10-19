@@ -18,7 +18,85 @@ export interface ScenarioDefinition {
   perturbations: PerturbationSpec[];
   /** Scenario E is special: it ends perturbations on the target instead of adding any. */
   kind: "perturbation" | "recovery";
+  /**
+   * Randomised scenarios build their perturbations (and pick their target) from
+   * a replay-stable random stream at start time. Ground truth stays server/sim-side
+   * and is never placed in an investigator's context.
+   */
+  generate?: (rand: () => number) => GeneratedScenario;
 }
+
+export interface GeneratedScenario {
+  target: PartnerId;
+  perturbations: PerturbationSpec[];
+  /** Plain-language description of what was rolled, revealed only after a run. */
+  factors: string[];
+}
+
+/** Replay-stable PRNG (mulberry32) seeded from integers. */
+export function seededRandom(...parts: number[]): () => number {
+  let h = 0x9e3779b9;
+  for (const p of parts) h = Math.imul(h ^ (p | 0), 0x85ebca6b) ^ (h >>> 13);
+  let a = h >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const between = (r: () => number, lo: number, hi: number) => Math.round((lo + r() * (hi - lo)) * 100) / 100;
+const NAME: Record<PartnerId, string> = { "partner-a": "Partner A", "partner-b": "Partner B", "partner-c": "Partner C", "partner-d": "Partner D", "partner-e": "Partner E" };
+
+/**
+ * The murky one. One partner's downstream degrades on several channels at once,
+ * each signal deliberately just under a runbook threshold (latency < 3×,
+ * partner errors < 10%, traffic between the 1.25× "stable" and 1.5× "surge"
+ * lines), plus unrelated red herrings elsewhere. Built on purpose to sit outside
+ * the rulebook — the realistic "never seen this before" incident.
+ */
+export function generateMystery(rand: () => number): GeneratedScenario {
+  const shuffled: PartnerId[] = [...PARTNER_IDS];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const [target, herringA, herringB] = shuffled;
+  const lat = between(rand, 1.9, 2.3);
+  const err = between(rand, 0.04, 0.065);
+  const dem = between(rand, 1.28, 1.42);
+  const perturbations: PerturbationSpec[] = [
+    sustained({ entity: target, channel: "latency", peak: lat, rampUpSeconds: 40, remediableByPartnerEscalation: true, remediationSeconds: 60 }),
+    sustained({ entity: target, channel: "errors", peak: err, rampUpSeconds: 30, startOffsetSeconds: 5, remediableByPartnerEscalation: true, remediationSeconds: 60 }),
+    sustained({ entity: target, channel: "demand", peak: dem, rampUpSeconds: 30 }),
+  ];
+  const factors = [
+    `${NAME[target]}'s downstream got ≈${lat}× slower and started failing ≈${Math.round(err * 100)}% of calls — the real problem.`,
+    `${NAME[target]}'s traffic also rose ≈${dem}× — enough to look like "maybe it's just load", too little to cause this.`,
+  ];
+  const herrings = [
+    () => {
+      const d = between(rand, 1.3, 1.45);
+      perturbations.push(sustained({ entity: herringA, channel: "demand", peak: d, rampUpSeconds: 20, holdSeconds: 120, rampDownSeconds: 20 }));
+      factors.push(`Red herring: ${NAME[herringA]}'s traffic jumped ≈${d}× but it stayed perfectly healthy.`);
+    },
+    () => {
+      const d = between(rand, 1.1, 1.2);
+      perturbations.push(sustained({ entity: "retail", channel: "demand", peak: d, rampUpSeconds: 30, holdSeconds: 150, rampDownSeconds: 30 }));
+      factors.push(`Red herring: retail banking got ≈${d}× busier (payday?) and coped fine.`);
+    },
+    () => {
+      const l = between(rand, 1.4, 1.7);
+      perturbations.push(sustained({ entity: herringB, channel: "latency", peak: l, startOffsetSeconds: 15, rampUpSeconds: 10, holdSeconds: 40, rampDownSeconds: 10 }));
+      factors.push(`Red herring: ${NAME[herringB]} had a brief ≈${l}× latency wobble that fixed itself.`);
+    },
+  ];
+  const skip = Math.floor(rand() * herrings.length);
+  herrings.forEach((h, i) => i !== skip && h());
+  return { target, perturbations, factors };
+}
+
 
 const sustained = (p: Partial<PerturbationSpec> & Pick<PerturbationSpec, "entity" | "channel" | "peak">): PerturbationSpec => ({
   startOffsetSeconds: 0,
@@ -92,7 +170,7 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   retail_risk: {
     id: "retail_risk",
     code: "D",
-    label: "Retail banking risk",
+    label: "Rush hour (retail at risk)",
     description:
       "Stress test: partner demand doubles, Partner C's downstream slows ≈10×, and retail demand rises ≈1.35×. Shared resource pressure from partners threatens retail banking's simulated P95 target.",
     expectedEffects: [
@@ -197,6 +275,20 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       sustained({ entity: "target", channel: "latency", peak: 12, rampUpSeconds: 20, remediableByPartnerEscalation: true, remediationSeconds: 60 }),
     ],
   },
+  mystery: {
+    id: "mystery",
+    code: "M",
+    label: "Mystery incident",
+    description:
+      "Randomised every time. Something is wrong with one partner — but every signal sits just under a runbook threshold, and there are red herrings elsewhere. No rulebook entry fits.",
+    expectedEffects: ["One partner degrades (which one is random)", "Several weak signals at once, plus unrelated noise", "The rulebook can't name a cause — someone has to reason about it"],
+    targetable: false,
+    defaultTarget: null,
+    rootCause: "partner_downstream_latency",
+    kind: "perturbation",
+    perturbations: [],
+    generate: generateMystery,
+  },
   masked_slowdown: {
     id: "masked_slowdown",
     code: "X6",
@@ -215,6 +307,9 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
   },
 };
 
+/** The three scenarios offered in the UI: routine, rush hour, and the murky one. */
+export const UI_SCENARIO_IDS = ["partner_slowdown", "retail_risk", "mystery"] as const;
+
 /** The five scenarios the brief requires (A–E), in display order. */
 export const PRIMARY_SCENARIO_IDS = ["partner_slowdown", "traffic_spike", "resource_saturation", "retail_risk", "recovery"] as const;
 export const EXTRA_SCENARIO_IDS = [
@@ -224,6 +319,7 @@ export const EXTRA_SCENARIO_IDS = [
   "high_rate_normal_latency",
   "low_traffic_high_latency",
   "masked_slowdown",
+  "mystery",
 ] as const;
 
 export function getScenario(id: string): ScenarioDefinition | null {

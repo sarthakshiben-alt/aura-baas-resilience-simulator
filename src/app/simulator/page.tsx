@@ -8,7 +8,7 @@ import { Button, Card, CardHeader, Empty, Label, Select, Switch } from "@/compon
 import { TimeSeriesChart } from "@/components/charts";
 import { SimTag } from "@/components/status";
 import { ENTITY_PROFILES, ALLOWED_TIMEOUTS_MS } from "@/lib/sim/config";
-import { EXTRA_SCENARIO_IDS, PRIMARY_SCENARIO_IDS, SCENARIOS, type ScenarioDefinition } from "@/lib/sim/scenarios";
+import { SCENARIOS, UI_SCENARIO_IDS, type ScenarioDefinition } from "@/lib/sim/scenarios";
 import { perturbationFinished } from "@/lib/sim/engine";
 import { runWhatIf } from "@/lib/sim/whatif";
 import { GOLDEN_SCENARIOS } from "@/lib/golden/dataset";
@@ -16,7 +16,14 @@ import { FEATURED_GOLDEN } from "@/lib/golden/featured";
 import { PARTNER_IDS, type PartnerId } from "@/lib/sim/types";
 import { fmtPct, fmtSimTime } from "@/lib/utils";
 
-function ScenarioCard({ def }: { def: ScenarioDefinition }) {
+const UI_EMOJI: Record<string, string> = { partner_slowdown: "🐢", retail_risk: "🚦", mystery: "🎲" };
+const UI_TAGLINE: Record<string, string> = {
+  partner_slowdown: "The textbook case. The rulebook handles it instantly.",
+  retail_risk: "Several things at once — but each one is in the rulebook.",
+  mystery: "Different every time. No rule fits — this is where AI earns its keep (or doesn't).",
+};
+
+function ScenarioCard({ def, n }: { def: ScenarioDefinition; n: number }) {
   const sim = useSim();
   const [target, setTarget] = useState<PartnerId>((def.defaultTarget ?? "partner-a") as PartnerId);
   const [justClicked, setJustClicked] = useState(false);
@@ -29,8 +36,11 @@ function ScenarioCard({ def }: { def: ScenarioDefinition }) {
   };
   return (
     <Card className="flex flex-col p-4" data-testid={`scenario-${def.id}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Scenario {def.code}</div>
-      <h3 className="text-sm font-semibold text-text">{def.label}</h3>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-muted">Scenario {n}</div>
+      <h3 className="text-base font-extrabold text-text">
+        {UI_EMOJI[def.id]} {def.label}
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-nav-active">{UI_TAGLINE[def.id]}</p>
       <p className="mt-1 text-xs text-text-2">{def.description}</p>
       <details className="mt-2 text-[11px] text-muted">
         <summary className="cursor-pointer">What to expect</summary>
@@ -156,7 +166,7 @@ function ActiveRuns() {
                 <li key={r.id} className="flex items-center justify-between gap-2 py-2">
                   <div>
                     <div className="font-medium text-text">
-                      {r.label} {r.targetEntityId ? `· ${ENTITY_PROFILES[r.targetEntityId].name}` : ""}
+                      {r.label} {r.groundTruthFactors ? "· 🎲 cause hidden" : r.targetEntityId ? `· ${ENTITY_PROFILES[r.targetEntityId].name}` : ""}
                     </div>
                     <div className="text-[11px] text-muted">
                       {r.id} · started {fmtSimTime(r.startedAt)} · {finished ? "finished" : ending ? "ending (ramping down)" : "active"}
@@ -188,11 +198,10 @@ function WhatIf() {
         subtitle="The same incident replayed twice for 3 simulated minutes: once with protections ON, once OFF."
         right={
           <Select value={scenario} onChange={(e) => setScenario(e.target.value)} className="h-8 text-xs" aria-label="What-if scenario">
-            {[...PRIMARY_SCENARIO_IDS, ...EXTRA_SCENARIO_IDS]
-              .filter((id) => SCENARIOS[id].kind !== "recovery")
+            {UI_SCENARIO_IDS
               .map((id) => (
                 <option key={id} value={id}>
-                  {SCENARIOS[id].code} · {SCENARIOS[id].label}
+                  {UI_EMOJI[id]} {SCENARIOS[id].label}
                 </option>
               ))}
           </Select>
@@ -317,19 +326,11 @@ function SimulatorPageInner() {
         <h1 className="text-xl font-extrabold text-text">🧪 Incident simulator <SimTag /></h1>
         <p className="text-sm text-text-2">Pick a scenario, press Trigger, then pop over to the Overview to watch it unfold. Break things freely — it&apos;s all simulated, and the same seed gives the same result every time.</p>
       </div>
-      <section aria-label="Scenarios" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {PRIMARY_SCENARIO_IDS.map((id) => (
-          <ScenarioCard key={id} def={SCENARIOS[id]} />
+      <section aria-label="Scenarios" className="grid gap-3 md:grid-cols-3">
+        {UI_SCENARIO_IDS.map((id, i) => (
+          <ScenarioCard key={id} def={SCENARIOS[id]} n={i + 1} />
         ))}
       </section>
-      <details className="rounded-2xl border border-border bg-surface shadow-sm">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">More scenarios (6 edge cases)</summary>
-        <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-5">
-          {EXTRA_SCENARIO_IDS.map((id) => (
-            <ScenarioCard key={id} def={SCENARIOS[id]} />
-          ))}
-        </div>
-      </details>
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <ActiveRuns />

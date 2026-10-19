@@ -356,7 +356,9 @@ export class SimController {
         "success",
         def?.kind === "recovery"
           ? `🩹 Recovery triggered${who ? ` for ${who}` : ""}: its downstream returns to normal over ~15 s.`
-          : `🚀 Triggered: ${def?.label ?? scenarioId}${who ? ` on ${who}` : ""}. Watch the Overview — monitoring should detect it within seconds.`,
+          : def?.generate
+            ? `🎲 Triggered: ${def.label}. Something just went wrong somewhere — head to the Overview and see if you can work out what.`
+            : `🚀 Triggered: ${def?.label ?? scenarioId}${who ? ` on ${who}` : ""}. Watch the Overview — monitoring should detect it within seconds.`,
       );
     }
   }
@@ -373,7 +375,7 @@ export class SimController {
   isScenarioActive(scenarioId: string, target: string | null): boolean {
     const t = this.state.tick;
     return this.state.scenarioRuns.some(
-      (r) => r.scenarioId === scenarioId && (r.targetEntityId ?? null) === (target ?? null) && r.stoppedAt === null && r.perturbations.some((p) => (p.endAt === null || p.endAt > t) && (p.plannedEndAt === null || p.plannedEndAt > t)),
+      (r) => r.scenarioId === scenarioId && (!!SCENARIOS[scenarioId]?.generate || (r.targetEntityId ?? null) === (target ?? null)) && r.stoppedAt === null && r.perturbations.some((p) => (p.endAt === null || p.endAt > t) && (p.plannedEndAt === null || p.plannedEndAt > t)),
     );
   }
 

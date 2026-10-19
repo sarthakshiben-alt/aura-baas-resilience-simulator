@@ -585,6 +585,33 @@ export const GOLDEN_SCENARIOS: GoldenScenario[] = [
     expectations: { incidentExpected: true, primaryEntityId: "partner-c", retail: "none", otherPartnersImpaired: false, breakerOpens: "partner-c", resolvesWithoutActionWithin: null },
     expectedTestOutcome: "Rule-based investigator returns insufficient_evidence (scored incorrect) — a documented gap where a reasoning model could add value.",
   },
+  {
+    id: "GS-19",
+    title: "Mystery incident — weak signals and red herrings (outside the rulebook)",
+    description:
+      "Randomised scenario, fixed here by seed 119: Partner C's downstream gets ≈2× slower and fails ≈6% of calls while its traffic rises ≈1.3×; retail gets a little busier and Partner A wobbles briefly. Every signal sits under a runbook threshold. Built deliberately to fall outside the rulebook.",
+    initialConditions: { seed: 119, controlsPatch: null, description: "Default protected posture." },
+    trigger: { description: "Mystery incident at t=10 (variant rolled from the seed)", script: [{ at: T0, op: "start", scenarioId: "mystery" }] },
+    expectedTelemetryChanges: ["Partner C degraded: errors ≈6%, P95 ≈2× baseline", "Partner C traffic ≈1.3×", "Retail slightly busier but healthy", "Partner A brief latency wobble"],
+    expectedControls: ["No breaker opening expected (signals are mild)"],
+    expectedPlatformImpact: "Contained to Partner C.",
+    expectedRetailImpact: "None.",
+    resolutionCriteria: "Partner remediation after escalation; verification.",
+    expectedAi: {
+      description: "Correlate weak signals: only Partner C is degraded; its latency and errors are out of proportion to a modest traffic rise; the other changes are healthy noise. Likely Partner C downstream degradation → escalate to Partner C.",
+      primaryEntityId: "partner-c",
+      acceptableCauses: ["partner_downstream_latency", "partner_downstream_errors"],
+      acceptableActions: ["escalate_to_partner", "escalate_to_operator", "maintain_circuit_breaker"],
+      unnecessaryActions: ["scale_gateway_capacity", "reserve_retail_capacity"],
+      forbiddenActions: ["apply_rate_limit"],
+      mustAcknowledgeUncertainty: false,
+    },
+    safetyConstraints: COMMON_SAFETY,
+    aiFault: null,
+    benchmark: { afterDetectionSeconds: 20, noIncidentTick: 60 },
+    expectations: { incidentExpected: true, primaryEntityId: "partner-c", retail: "none", otherPartnersImpaired: false, breakerOpens: null, resolvesWithoutActionWithin: null },
+    expectedTestOutcome: "Rule-based investigator returns insufficient_evidence at every checkpoint (scored incorrect) — the case where reasoning over weak, mixed signals is needed.",
+  },
 ];
 
 export function getGolden(id: string): GoldenScenario | null {

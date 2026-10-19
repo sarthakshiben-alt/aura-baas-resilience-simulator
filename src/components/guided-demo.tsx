@@ -262,7 +262,7 @@ export function GuidedDemo() {
       title = "That's the full loop";
       body = (
         <>
-          <p>Deterministic controls protected the platform without AI. Faster diagnosis comes mostly from <b>automating</b> the runbook — which a rule engine does without AI. AI adds value where rules can&apos;t classify the evidence (see GS-18 in the benchmark), and it only ever advises: the policy engine validates and a human approves.</p>
+          <p>Deterministic controls protected the platform without AI. Faster diagnosis comes mostly from <b>automating</b> the runbook — which a rule engine does without AI. AI is only worth it where the rulebook gets stuck — try the 🎲 <b>Mystery incident</b> on the comparison page, where every signal is just under a rule threshold. Either way it only advises: the policy engine validates and a human approves.</p>
           <p>Whether AI improves outcomes depends on the scenario. The benchmark on the comparison page tests it on the golden scenarios, including ambiguous and failure cases.</p>
         </>
       );

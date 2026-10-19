@@ -2,7 +2,7 @@ import { ALLOWED_TIMEOUTS_MS, cloneControls, ENTITY_PROFILES } from "./config";
 import { createInitialState, findIncident, perturbationFinished, pushEvent, step, type CreateStateOptions } from "./engine";
 import { addAudit, executeAction, getAction } from "./actions";
 import { validateAction } from "./policy";
-import { getScenario } from "./scenarios";
+import { getScenario, seededRandom } from "./scenarios";
 import type { ControlsPatch, EntityId, Incident, InvestigationRecord, Recommendation, SimState } from "./types";
 import { isEntityId, isPartnerId } from "./types";
 
@@ -69,7 +69,10 @@ export function startScenario(state: SimState, scenarioId: string, rawTarget?: s
   if (!def) throw new CommandError("unknown_scenario", `Unknown scenario "${String(scenarioId).slice(0, 40)}"`, 422);
   const t = state.tick;
   let target: EntityId | null = null;
-  if (def.targetable) {
+  // Randomised scenarios roll from (seed, tick, run counter): different every start, identical on replay.
+  const generated = def.generate ? def.generate(seededRandom(state.seed, t, state.counters.scenarioRun + 1)) : null;
+  if (generated) target = generated.target;
+  else if (def.targetable) {
     const tgt = rawTarget ?? def.defaultTarget;
     if (!isPartnerId(tgt)) throw new CommandError("invalid_target", "Scenario target must be a partner", 422);
     target = tgt;
@@ -102,7 +105,8 @@ export function startScenario(state: SimState, scenarioId: string, rawTarget?: s
     targetEntityId: target,
     startedAt: t,
     stoppedAt: null,
-    perturbations: def.perturbations.map((spec) => {
+    ...(generated ? { groundTruthFactors: generated.factors } : {}),
+    perturbations: (generated?.perturbations ?? def.perturbations).map((spec) => {
       const entity = spec.entity === "target" ? (target as EntityId) : spec.entity;
       const startAt = t + spec.startOffsetSeconds;
       return {

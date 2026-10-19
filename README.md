@@ -36,9 +36,9 @@ It is not a chatbot or a static dashboard. User actions change a deterministic s
 | Screen | Purpose |
 |---|---|
 | **Overview** (`/`) | Five partners + retail, eight platform metrics, live charts, incident timeline, **Start Guided Demo**. |
-| **Incident simulator** (`/simulator`) | Scenarios A–E (slowdown, traffic spike, saturation, retail risk, recovery) and 6 more; stop runs safely; toggle protections; inject AI faults; load golden scenarios; "protections ON vs OFF" what-if. |
+| **Incident simulator** (`/simulator`) | Three scenarios: 🐢 **Routine slowdown** (textbook), 🚦 **Rush hour** (several things at once, all in the rulebook), 🎲 **Mystery incident** (randomised; every signal just under a rule threshold, plus red herrings). Stop runs safely; toggle protections; load test scenarios; "protections ON vs OFF" what-if. The rest of the catalog (A–E, X1–X6) still drives the golden benchmark. |
 | **Incident investigation** (`/investigation`) | Incident detail, telemetry, timeline, labelled diagnosis (facts / inferences / unknowns / causes / evidence / limitations), **action approval** (approve / reject / cancel pending), recovery outcome, **AI assistant**, audit log. |
-| **AI comparison** (`/comparison`) | **AI ASSISTANCE ON/OFF** paired runs, golden benchmark, business-impact estimate with attribution, your interactive runs. |
+| **AI comparison** (`/comparison`) | **SLA penalty card** for the three scenarios (manual runbook vs automated rules vs AI, at an editable $4,500/min), a 🎲 re-roll for the mystery with a step-by-step story of each arm and a reveal of what really happened; detailed paired metrics, golden benchmark and your interactive runs are collapsed below. |
 | **Methodology** (`/methodology`) | Every assumption, threshold, rule, formula and the data dictionary. |
 
 Screenshots (synthetic data): [investigation](docs/screenshots/investigation.png) · [simulator](docs/screenshots/simulator.png) · [comparison](docs/screenshots/comparison.png).
@@ -115,6 +115,8 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 - **Three arms, not two.** Paired runs compare **manual runbook** · **automated rules (no AI)** · **AI-assisted**. "AI vs manual" mostly measures *automation*; "AI vs automated rules" measures what AI itself adds. A sensitivity table shows how the AI advantage depends on the triage assumption (0, 1, 5, 10, 20 min).
 - **Approach A — paired runs** (`src/lib/comparison/paired.ts`): same seed, scenario, initial conditions and protections. Measured AI latency is converted to simulated seconds (1:1 by default, minimum one tick for both modes). A **labelled simulated operator** approves every policy-valid recommendation after the same fixed delay, and re-investigates every 60 s while unresolved, in both modes. An uncontrolled counterfactual isolates what the deterministic controls contribute.
 - **Approach B — benchmark** (`src/lib/comparison/benchmark.ts`): both investigators score the identical context for every golden scenario against expected causes and permitted, unnecessary and forbidden actions, plus a numeric evidence-grounding heuristic.
+- **The paged human.** When an arm can only recommend "escalate to a human operator" (the rulebook's answer to anything it can't classify), a **simulated on-call engineer** finds the true cause after the same assumed triage time and escalates it — identically in every arm. Without this, a stumped rulebook would never recover and AI would win by default; with it, AI only wins by being *faster* than a human, not by being the only path to a fix.
+- **SLA penalty = time outside SLA**, i.e. seconds the affected service was slow, erroring or blocked (not only fully down), × the assumed $/min.
 - **Interactive runs:** real human decision time is recorded separately from AI latency.
 - **Business value:** `downtime minutes avoided × assumed $/min`. The case's $4,500/min is visible, editable and labelled as an assumption. Benefit is attributed separately to controls, diagnosis speed, recommendation speed, approval time and action effectiveness, and marked *uncertain* where attribution is unclear. Zero denominators show N/A, and no improvement is hard-coded anywhere.
 
@@ -137,6 +139,15 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
    | GS-18 verified recovery | 729 s | 129 s | 130 s |
 
    "AI vs manual" looks like ~$42k avoided at $4,500/min, but **all** of it comes from automating the runbook; AI over automated rules added ±0–1 s. The sensitivity table shows the AI advantage tracks the assumed triage time almost one-for-one.
+   **The mystery incident (GS-19) is where AI earns its keep.** Built after the results above, *deliberately* outside the rulebook: one partner degrades on latency (≈2×), errors (≈4–6.5%) and traffic (≈1.3×) at once, each just under a rule threshold, plus red herrings. The rulebook returns "insufficient evidence" at every checkpoint in 60/60 random rolls, so it pages a human. Parameters were fixed before the first live AI call and not tuned afterwards. Live local runs, real `qwen/qwen3.8-27b`, 10 min assumed triage, three rolls:
+
+   | Time outside SLA | Manual runbook | Automated rules (no AI) | AI-assisted |
+   |---|---|---|---|
+   | Roll 1 | 1295 s | 695 s | **97 s** |
+   | Roll 2 | 1295 s | 695 s | **98 s** |
+   | Roll 3 | 1294 s | 694 s | **96 s** |
+
+   ≈ $45k per incident vs automated rules at $4,500/min. Caveats: the rules arm's cost is driven by the *assumed* 10 min for the paged human (see the sensitivity table); the AI named the right partner and action every time but **mislabelled the cause as a traffic surge in 2 of 3 rolls** — right fix, wrong story, which a human approver should catch; three rolls is anecdote, not a benchmark.
 1. **Deterministic controls deliver most of the protection.** Scenario A over 180 s: retail breach 0 s with protections vs 164 s without; neighbour impairment 0 vs 656 partner-seconds.
 2. **AI rarely wins on speed.** Breaker cycles absorb seconds of diagnosis delay; paired runs showed identical recovery for a 2 s slower diagnosis.
 3. **AI adds value only where rules are wrong — and fails in risky ways.** It solved the pre-registered rule gap (GS-18) but was overconfident on ambiguous evidence (GS-09) and misread protective fast-fails as partner errors (GS-02, GS-15). The policy engine blocked its one unsafe proposal.

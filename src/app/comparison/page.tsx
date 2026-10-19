@@ -6,6 +6,7 @@ import { FlaskConical, LoaderCircle, Play } from "lucide-react";
 import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select } from "@/components/ui/primitives";
 import { LabeledBarChart } from "@/components/charts";
+import { ENTITY_PROFILES } from "@/lib/sim/config";
 import { Chip, SimTag, SourceBadge } from "@/components/status";
 import { FEATURED_GOLDEN, type FeaturedGoldenId } from "@/lib/golden/featured";
 import { diff, ratio, type RunMetrics } from "@/lib/comparison/metrics";
@@ -13,7 +14,7 @@ import type { PairedRunResult, SensitivityRow } from "@/lib/comparison/paired";
 import { CASE_COST_PER_DOWNTIME_MINUTE_USD, computeBusinessValue } from "@/lib/comparison/business";
 import type { BenchmarkAggregate } from "@/lib/comparison/benchmark";
 import type { DiagnosisSource } from "@/lib/sim/types";
-import { cn, fmtMs, fmtNum, fmtPct } from "@/lib/utils";
+import { cn, fmtMs, fmtNum, fmtPct, fmtSimTime } from "@/lib/utils";
 
 type Fmt = (v: number | null) => string;
 const secs: Fmt = (v) => (v === null ? "N/A" : `${v} s`);
@@ -256,15 +257,25 @@ function BusinessValue({ cost }: { cost: number }) {
 const usd0 = (v: number) => `${v < 0 ? "−" : ""}$${Math.round(Math.abs(v)).toLocaleString("en-US")}`;
 const min1 = (s: number) => `${(Math.round((s / 60) * 10) / 10).toLocaleString("en-US")} min`;
 
+const ARM_STYLE = {
+  off: { label: (r: PairedRunResult) => `Manual runbook (${Math.round(r.config.manualTriageSeconds / 60)} min triage)`, color: "var(--s7)", emoji: "🧑‍💻" },
+  rules: { label: () => "Automated rules (no AI)", color: "var(--s3)", emoji: "📘" },
+  on: { label: () => "AI-assisted", color: "var(--s1)", emoji: "🤖" },
+} as const;
+type ArmKey = keyof typeof ARM_STYLE;
+const ARMS: ArmKey[] = ["off", "rules", "on"];
+const fixedByArm = (r: PairedRunResult, k: ArmKey) => !!r.groundTruth.primaryEntityId && r[k].approvedActions.includes(`escalate_to_partner→${r.groundTruth.primaryEntityId}`) && r[k].humanDiagnosedAt === null;
+
 function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; setCost: (v: number) => void; scenario: FeaturedGoldenId; setScenario: (v: FeaturedGoldenId) => void }) {
   const sim = useSim();
   const r = sim.pairedByGolden[scenario] ?? null;
+  const reroll = () => void sim.runPaired({ goldenId: "GS-19", seed: 1 + Math.floor(Math.random() * 2_000_000_000), operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes: sim.manualTriageMinutes });
   return (
     <Card data-testid="sla-penalty">
-      <CardHeader title="💸 What does downtime cost? (SLA penalty)" subtitle="Same incident, handled three ways. Every minute a partner is down costs the bank money." right={<SimTag>Illustrative</SimTag>} />
+      <CardHeader title="💸 What does downtime cost? (SLA penalty)" subtitle="Same incident, handled three ways. Every minute a service is outside its SLA costs the bank money." right={<SimTag>Illustrative</SimTag>} />
       <div className="space-y-4 p-5 pt-2">
         <div className="flex flex-wrap items-end justify-between gap-3 text-xs">
-          <div role="radiogroup" aria-label="Incident" className="inline-flex rounded-full bg-surface-2 p-1">
+          <div role="radiogroup" aria-label="Incident" className="inline-flex flex-wrap rounded-3xl bg-surface-2 p-1">
             {FEATURED_GOLDEN.map((g) => (
               <button
                 key={g.id}
@@ -274,7 +285,7 @@ function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; se
                 data-testid={`sla-pick-${g.id}`}
                 className={cn("cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold transition-colors", scenario === g.id ? "bg-surface text-nav-active shadow-sm" : "text-muted hover:text-text")}
               >
-                {g.short} <span className="font-semibold opacity-70">· {g.id}</span>
+                {g.emoji} {g.short}
               </button>
             ))}
           </div>
@@ -283,59 +294,95 @@ function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; se
             <input id="sla-cost" type="number" min={0} step={100} value={cost} onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))} className="h-9 w-28 rounded-xl border border-border bg-surface px-2.5 text-sm" />
           </div>
         </div>
-        <p className="text-xs text-text-2">{FEATURED_GOLDEN.find((g) => g.id === scenario)?.blurb} <span className="text-muted">${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</span></p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="max-w-3xl text-xs text-text-2">
+            {FEATURED_GOLDEN.find((g) => g.id === scenario)?.blurb} <span className="text-muted">${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</span>
+          </p>
+          {scenario === "GS-19" ? (
+            <Button size="sm" variant="primary" onClick={reroll} disabled={sim.paired.loading} data-testid="reroll-mystery">
+              {sim.paired.loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : "🎲"} Roll a new mystery
+            </Button>
+          ) : null}
+        </div>
         {!r ? (
           <Empty>{sim.paired.loading ? "⏳ Running the same incident three ways (manual, automated rules, AI)… a few seconds." : sim.paired.error ? `Comparison failed: ${sim.paired.error}` : "Getting ready…"}</Empty>
         ) : (
-          <SlaBody cost={cost} r={r} scenario={scenario} />
+          <div className={cn(sim.paired.loading && "opacity-50 transition-opacity")}>
+            <SlaBody cost={cost} r={r} scenario={scenario} />
+          </div>
         )}
       </div>
     </Card>
   );
 }
 
+function ArmStory({ r, k }: { r: PairedRunResult; k: ArmKey }) {
+  const m = r[k];
+  const truth = r.groundTruth.primaryEntityId;
+  const steps: string[] = [];
+  if (k === "off") steps.push(`Engineer paged; ${Math.round(m.triageSeconds / 60)} min working the runbook`);
+  if (k === "on" && m.metrics.diagnosisSource !== "llm") steps.push(`⚠️ AI unavailable (${m.metrics.errorCategory?.replace(/_/g, " ") ?? "error"}) — fell back to the rulebook`);
+  if (m.topCause === "insufficient_evidence") steps.push(`${fmtSimTime(m.metrics.timeToDiagnosisS)} — ${k === "on" && m.metrics.diagnosisSource === "llm" ? "AI" : "rulebook"}: “can't tell what's wrong”`);
+  else if (m.metrics.timeToDiagnosisS !== null) steps.push(`${fmtSimTime(m.metrics.timeToDiagnosisS)} — ${k === "on" && m.metrics.diagnosisSource === "llm" ? "AI" : "runbook"} names a cause: ${m.topCause?.replace(/_/g, " ")}`);
+  if (m.humanPagedAt !== null) steps.push(`${fmtSimTime(m.humanPagedAt)} — human on-call paged to dig deeper`);
+  if (m.humanDiagnosedAt !== null) steps.push(`${fmtSimTime(m.humanDiagnosedAt)} — human finds it (after the assumed ${Math.round(r.config.manualTriageSeconds / 60)} min) and escalates`);
+  else if (fixedByArm(r, k)) steps.push(`Escalated to ${truth && truth in ENTITY_PROFILES ? ENTITY_PROFILES[truth as keyof typeof ENTITY_PROFILES].name : truth} straight away — no human needed`);
+  steps.push(m.metrics.timeToRecoveryS !== null ? `${fmtSimTime(m.metrics.timeToRecoveryS)} — ✅ recovery verified` : "Not recovered within the window");
+  return (
+    <div className="rounded-2xl border border-border bg-surface-2/50 p-3">
+      <div className="flex items-center gap-2 text-sm font-bold text-text">
+        <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: ARM_STYLE[k].color }} />
+        {ARM_STYLE[k].emoji} {ARM_STYLE[k].label(r)}
+      </div>
+      <ol className="mt-2 space-y-1 text-xs text-text-2">
+        {steps.map((x) => (
+          <li key={x}>{x}</li>
+        ))}
+      </ol>
+      {k === "on" && m.metrics.diagnosisSource === "llm" && m.diagnosisSummary ? <p className="mt-2 rounded-xl bg-surface p-2 text-xs italic text-text-2">“{m.diagnosisSummary.slice(0, 280)}{m.diagnosisSummary.length > 280 ? "…" : ""}”</p> : null}
+    </div>
+  );
+}
+
 function SlaBody({ cost, r, scenario }: { cost: number; r: PairedRunResult; scenario: FeaturedGoldenId }) {
-  const arms = [
-    { key: "off", label: `Manual runbook (${Math.round(r.config.manualTriageSeconds / 60)} min triage)`, color: "var(--s7)", down: r.off.metrics.primaryDowntimeSeconds },
-    { key: "rules", label: "Automated rules (no AI)", color: "var(--s3)", down: r.rules.metrics.primaryDowntimeSeconds },
-    { key: "on", label: "AI-assisted", color: "var(--s1)", down: r.on.metrics.primaryDowntimeSeconds },
-  ];
+  const down = (k: ArmKey) => r[k].metrics.primarySlaBreachSeconds;
   const pen = (sec: number) => (sec / 60) * cost;
-  const manual = arms[0].down;
-  const autoSaved = manual - arms[1].down;
-  const aiExtra = arms[1].down - arms[2].down;
+  const manual = down("off");
+  const autoSaved = manual - down("rules");
+  const aiExtra = down("rules") - down("on");
   const cf = r.controlsCounterfactual;
   const pb = r.protectedBaseline;
-  const fallback = r.on.metrics.diagnosisSource !== "llm";
+  const aiLive = r.on.metrics.diagnosisSource === "llm";
+  const mystery = scenario === "GS-19";
   return (
-    <>
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-text-2">
         Incident: <b className="text-text">{r.label}</b>
-        {fallback ? <Chip tone="warning">AI used the rule-based fallback in this run</Chip> : <Chip tone="info">Real AI responses</Chip>}
+        {!aiLive ? <Chip tone="warning">AI used the rule-based fallback in this run</Chip> : <Chip tone="info">Real AI responses</Chip>}
       </div>
-      <LabeledBarChart height={150} ariaLabel="SLA penalty per workflow" format={(v) => usd0(v)} data={arms.map((a) => ({ label: a.label, value: Math.round(pen(a.down)), color: a.color }))} />
+      <LabeledBarChart height={150} ariaLabel="SLA penalty per workflow" format={(v) => usd0(v)} data={ARMS.map((k) => ({ label: ARM_STYLE[k].label(r), value: Math.round(pen(down(k))), color: ARM_STYLE[k].color }))} />
       <div className="overflow-x-auto">
         <table className="tabular w-full min-w-[560px] text-sm" data-testid="sla-table">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="py-1.5 font-medium">How the incident was handled</th>
-              <th className="py-1.5 text-right font-medium">Partner downtime</th>
+              <th className="py-1.5 text-right font-medium">Time outside SLA</th>
               <th className="py-1.5 text-right font-medium">SLA penalty</th>
               <th className="py-1.5 text-right font-medium">Time saved vs manual</th>
               <th className="py-1.5 text-right font-medium">Money saved vs manual</th>
             </tr>
           </thead>
           <tbody>
-            {arms.map((a) => (
-              <tr key={a.key} className="border-t border-border">
+            {ARMS.map((k) => (
+              <tr key={k} className="border-t border-border">
                 <td className="py-1.5 text-text">
-                  <span aria-hidden className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: a.color }} />
-                  {a.label}
+                  <span aria-hidden className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: ARM_STYLE[k].color }} />
+                  {ARM_STYLE[k].label(r)}
                 </td>
-                <td className="py-1.5 text-right">{min1(a.down)}</td>
-                <td className="py-1.5 text-right font-semibold text-text">{usd0(pen(a.down))}</td>
-                <td className="py-1.5 text-right">{a.key === "off" ? "—" : min1(manual - a.down)}</td>
-                <td className={cn("py-1.5 text-right font-semibold", a.key !== "off" && manual - a.down > 0 ? "text-good-text" : "")}>{a.key === "off" ? "—" : usd0(pen(manual - a.down))}</td>
+                <td className="py-1.5 text-right">{min1(down(k))}</td>
+                <td className="py-1.5 text-right font-semibold text-text">{usd0(pen(down(k)))}</td>
+                <td className="py-1.5 text-right">{k === "off" ? "—" : min1(manual - down(k))}</td>
+                <td className={cn("py-1.5 text-right font-semibold", k !== "off" && manual - down(k) > 0 ? "text-good-text" : "")}>{k === "off" ? "—" : usd0(pen(manual - down(k)))}</td>
               </tr>
             ))}
           </tbody>
@@ -343,24 +390,52 @@ function SlaBody({ cost, r, scenario }: { cost: number; r: PairedRunResult; scen
       </div>
       <ul className="space-y-1.5 text-sm text-text-2">
         <li>
-          <b className="text-text">Deterministic automation</b> (rules that start the moment the problem is detected) saves <b className="text-good-text">{min1(autoSaved)} · {usd0(pen(autoSaved))}</b> compared with waiting for a human to triage.
+          <b className="text-text">Deterministic automation</b> (rules that run the moment the problem is detected) {autoSaved > 0 ? <>saves <b className="text-good-text">{min1(autoSaved)} · {usd0(pen(autoSaved))}</b> compared with waiting for a human to triage.</> : <>saves <b className="text-text">nothing</b> here.</>}
         </li>
-        <li>
-          <b className="text-text">AI on top of those rules</b> {aiExtra > 0 ? <>saves a further <b className="text-good-text">{min1(aiExtra)} · {usd0(pen(aiExtra))}</b>.</> : aiExtra < 0 ? <>costs an extra <b className="text-critical-text">{min1(-aiExtra)} · {usd0(pen(-aiExtra))}</b>.</> : <>saves <b className="text-text">nothing extra</b> in this incident — the rules were already as fast.</>}
+        <li data-testid="ai-verdict">
+          <b className="text-text">AI on top of those rules</b>{" "}
+          {!aiLive ? (
+            <>couldn&apos;t be measured in this run — the AI provider was unavailable, so it fell back to the same rules.{mystery ? " Roll again in a minute." : ""}</>
+          ) : aiExtra > 0 ? (
+            <>
+              saves a further <b className="text-good-text">{min1(aiExtra)} · {usd0(pen(aiExtra))}</b>.{mystery ? " 🎉 This is the job AI is for: the rulebook was stumped, the AI connected the weak signals." : ""}
+            </>
+          ) : aiExtra < 0 ? (
+            <>
+              costs an extra <b className="text-critical-text">{min1(-aiExtra)} · {usd0(pen(-aiExtra))}</b>.
+            </>
+          ) : (
+            <>saves <b className="text-text">nothing extra</b>{mystery ? " — it didn't crack this one either, so a human had to. Honest result; roll again to test another variation." : " — the rules were already as fast. Expected: AI isn't needed for problems the rulebook already covers."}</>
+          )}
         </li>
-        {scenario === "GS-18" && aiExtra <= 0 ? (
-          <li>
-            🕵️ <b className="text-text">Plot twist:</b> this is the &quot;tricky&quot; one, yet the rules still kept up — they ran the moment the slowdown was detected, before the traffic growth muddied the picture. AI&apos;s edge on this incident only shows when both look at later evidence (see the accuracy benchmark below), and that doesn&apos;t change the downtime bill here.
+        {cf.retailBreachSeconds - pb.retailBreachSeconds > 0 || cf.otherPartnerImpairedSeconds - pb.otherPartnerImpairedSeconds > 0 ? (
+          <li className="text-xs text-muted">
+            Not counted above: the gateway protections (on in all three) also kept retail banking within its target for {Math.max(0, cf.retailBreachSeconds - pb.retailBreachSeconds)} s more and kept the other partners healthy for {Math.max(0, cf.otherPartnerImpairedSeconds - pb.otherPartnerImpairedSeconds)} partner-seconds more than with no protections.
           </li>
         ) : null}
-        <li className="text-xs text-muted">
-          Not counted above: the gateway protections (on in all three) also kept retail banking within its target for {Math.max(0, cf.retailBreachSeconds - pb.retailBreachSeconds)} s more and kept the other partners healthy for {Math.max(0, cf.otherPartnerImpairedSeconds - pb.otherPartnerImpairedSeconds)} partner-seconds more than with no protections.
-        </li>
       </ul>
+      <div>
+        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">How each one handled it (simulated clock)</div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {ARMS.map((k) => (
+            <ArmStory key={k} r={r} k={k} />
+          ))}
+        </div>
+      </div>
+      {r.groundTruth.factors ? (
+        <details className="rounded-2xl border border-border bg-accent-soft/60 p-3" data-testid="mystery-reveal">
+          <summary className="cursor-pointer text-sm font-bold text-nav-active">🕵️ Reveal what really happened in this mystery</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-text-2">
+            {r.groundTruth.factors.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <p className="text-[11px] text-muted">
-        Honest reading: most of the saving comes from automating the response, not from AI. The manual figure depends on the assumed triage time — change it in the top bar (AI OFF) or under &quot;Detailed results&quot; below.
+        How to read this: &quot;time outside SLA&quot; = minutes the affected service was slow, erroring or blocked. When automation can only say &quot;page a human&quot;, a simulated on-call engineer finds the real cause after the same assumed triage time in every arm. Change that assumption in the top bar (AI OFF) or under &quot;Detailed results&quot;.
       </p>
-    </>
+    </div>
   );
 }
 

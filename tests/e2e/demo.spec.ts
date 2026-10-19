@@ -90,4 +90,20 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await page.goto("/");
     await expect(page.getByTestId("row-partner-a")).toContainText("Protected", { timeout: 30_000 });
   });
+
+  test("three scenarios; the mystery stumps the rulebook, pages a human, and reveals its cause", async ({ page }) => {
+    await page.goto("/simulator");
+    for (const id of ["partner_slowdown", "retail_risk", "mystery"]) await expect(page.getByTestId(`start-${id}`)).toBeVisible();
+    await expect(page.getByTestId("start-traffic_spike")).toHaveCount(0);
+    await page.goto("/comparison");
+    await page.getByTestId("sla-pick-GS-19").click();
+    const card = page.getByTestId("sla-penalty");
+    await expect(card.getByTestId("sla-table")).toBeVisible({ timeout: 60_000 });
+    await expect(card).toContainText("can't tell what's wrong");
+    await expect(card).toContainText("human on-call paged");
+    // No live AI in this test → AI is labelled as fallback, never credited.
+    await expect(card.getByTestId("ai-verdict")).toContainText("couldn't be measured");
+    await card.getByText(/Reveal what really happened/).click();
+    await expect(card.getByTestId("mystery-reveal")).toContainText("the real problem");
+  });
 });
