@@ -65,6 +65,9 @@ function commandsFor(cfg: PairedRunConfig): { commands: Command[]; gs: GoldenSce
   };
 }
 
+/** Status is mutated by the runner; a function call avoids stale TS narrowing. */
+const isResolved = (i: { status: string }) => i.status === "resolved";
+
 async function runMode(cfg: PairedRunConfig, mode: InvestigationMode, investigate: Investigator): Promise<ModeRun> {
   const { commands, gs, triggerAt } = commandsFor(cfg);
   const runner = new ScriptedRunner(gs, { seed: cfg.seed, commands });
@@ -87,7 +90,7 @@ async function runMode(cfg: PairedRunConfig, mode: InvestigationMode, investigat
       const lt = Math.max(1, Math.ceil((outcome.latencyMs / 1000) * cfg.latencyTimeScale));
       ticks += lt;
       runner.advance(lt);
-      if (inc.status === "resolved") break;
+      if (isResolved(inc)) break;
       const entry: WorkflowEntry = {
         kind: "investigation",
         entryId: `PAIR-${mode}-INV${round}`,
@@ -99,7 +102,7 @@ async function runMode(cfg: PairedRunConfig, mode: InvestigationMode, investigat
       };
       runner.apply({ k: "entry", at: runner.state.tick, signed: { entry, sig: "local" } });
       runner.advance(cfg.operatorDelaySeconds);
-      if (inc.status === "resolved") break;
+      if (isResolved(inc)) break;
       // SIMULATED OPERATOR (labelled): approves every policy-valid pending recommendation; identical in both modes.
       let n = 0;
       for (const rec of [...inc.recommendations]) {
@@ -126,7 +129,7 @@ async function runMode(cfg: PairedRunConfig, mode: InvestigationMode, investigat
       }
       const until = Math.min(endAt, runner.state.tick + cfg.reinvestigateEverySeconds);
       runner.advanceUntil((st) => st.incidents[0].status === "resolved" || st.tick >= until, until + 1);
-      if (inc.status === "resolved" || runner.state.tick >= endAt) break;
+      if (isResolved(inc) || runner.state.tick >= endAt) break;
     }
     runner.advanceUntil((st) => st.incidents[0].status === "resolved" || st.tick >= endAt, endAt + 1);
   }

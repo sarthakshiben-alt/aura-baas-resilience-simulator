@@ -73,11 +73,11 @@ describe("AI investigation", () => {
   });
 
   it("12. missing API credentials do not crash the application", async () => {
-    const env = readServerEnv({ AI_PROVIDER: "groq", AI_MODEL: "some-model" } as NodeJS.ProcessEnv);
+    const env = readServerEnv({ AI_PROVIDER: "groq", AI_MODEL: "some-model" } as unknown as NodeJS.ProcessEnv);
     expect(env.aiConfigured).toBe(false);
     expect(env.aiConfigProblem).toMatch(/AI_API_KEY/);
-    expect(createProvider(env, {} as NodeJS.ProcessEnv)).toBeNull();
-    const noModel = readServerEnv({ AI_PROVIDER: "groq", AI_API_KEY: "x" } as NodeJS.ProcessEnv);
+    expect(createProvider(env, {} as unknown as NodeJS.ProcessEnv)).toBeNull();
+    const noModel = readServerEnv({ AI_PROVIDER: "groq", AI_API_KEY: "x" } as unknown as NodeJS.ProcessEnv);
     expect(noModel.aiConfigured).toBe(false);
     const { ctx } = ctxFor("GS-01");
     const out = await investigateIncident({ ...base, context: ctx, mode: "ai_on", provider: null });
