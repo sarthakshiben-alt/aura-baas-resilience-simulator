@@ -13,6 +13,8 @@ export interface ServerEnv {
   aiTimeoutMs: number;
   aiMaxRetries: number;
   aiMaxConcurrency: number;
+  /** Output token cap; reasoning models spend part of it on hidden reasoning. */
+  aiMaxOutputTokens: number;
   aiPricePerMillionTokensUsd: number | null;
   aiConfigured: boolean;
   aiConfigProblem: string | null;
@@ -59,6 +61,7 @@ export function readServerEnv(e: NodeJS.ProcessEnv = process.env): ServerEnv {
     aiTimeoutMs: int(e.AI_TIMEOUT_MS, 8000, 500, 60000),
     aiMaxRetries: int(e.AI_MAX_RETRIES, 2, 0, 3),
     aiMaxConcurrency: int(e.AI_MAX_CONCURRENCY, 2, 1, 8),
+    aiMaxOutputTokens: int(e.AI_MAX_OUTPUT_TOKENS, 3000, 256, 16000),
     aiPricePerMillionTokensUsd: Number.isFinite(price) && price >= 0 ? price : null,
     aiConfigured: problem === null,
     aiConfigProblem: problem,

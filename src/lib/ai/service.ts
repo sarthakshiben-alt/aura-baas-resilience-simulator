@@ -16,6 +16,7 @@ export interface InvestigateOptions {
   /** Total wall-clock budget for all LLM attempts. */
   timeoutMs: number;
   maxRetries: number;
+  maxOutputTokens?: number;
   fault?: "timeout" | "malformed" | null;
   maxConcurrency?: number;
   sleep?: (ms: number) => Promise<void>;
@@ -110,7 +111,7 @@ export async function investigateIncident(opts: InvestigateOptions): Promise<Inv
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), remaining);
         try {
-          const res = await provider.complete({ system: INVESTIGATION_SYSTEM_PROMPT, user: buildInvestigationUserMessage(opts.context), signal: controller.signal, maxTokens: 1400 });
+          const res = await provider.complete({ system: INVESTIGATION_SYSTEM_PROMPT, user: buildInvestigationUserMessage(opts.context), signal: controller.signal, maxTokens: opts.maxOutputTokens ?? 3000 });
           headersMs ??= res.headersMs;
           usage = res.usage;
           const parsed = parseDiagnosisText(res.text);

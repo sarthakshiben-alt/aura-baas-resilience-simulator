@@ -120,7 +120,7 @@ export async function answerQuestion(opts: {
       system: ASSISTANT_SYSTEM_PROMPT,
       user: buildAssistantUserMessage(opts.context, opts.question, opts.latestSummary),
       signal: controller.signal,
-      maxTokens: 600,
+      maxTokens: 1500,
     });
     const text = res.text.trim();
     const start = text.indexOf("{");

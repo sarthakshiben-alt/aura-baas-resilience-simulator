@@ -15,6 +15,7 @@ export function serverInvestigator(): Investigator {
       timeoutMs: env.aiTimeoutMs,
       maxRetries: env.aiMaxRetries,
       maxConcurrency: env.aiMaxConcurrency,
+      maxOutputTokens: env.aiMaxOutputTokens,
       fault,
       log: (event, data) => log("info", event, data),
     });
