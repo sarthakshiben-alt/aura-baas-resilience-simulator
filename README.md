@@ -41,6 +41,8 @@ It is not a chatbot or a static dashboard. User actions change a deterministic s
 | **AI comparison** (`/comparison`) | **AI ASSISTANCE ON/OFF** paired runs, golden benchmark, business-impact estimate with attribution, your interactive runs. |
 | **Methodology** (`/methodology`) | Every assumption, threshold, rule, formula and the data dictionary. |
 
+Screenshots (synthetic data): [investigation](docs/screenshots/investigation.png) · [simulator](docs/screenshots/simulator.png) · [comparison](docs/screenshots/comparison.png).
+
 The **guided demo** (3–5 minutes) walks through one incident: baseline → Partner A slowdown → the deterministic breaker contains it → investigate → approve escalation → verified recovery → paired comparison.
 
 ## Quick start
