@@ -100,6 +100,7 @@ export class SimController {
   // ------------------------------------------------------------ lifecycle
 
   async init() {
+    if (typeof window !== "undefined") window.addEventListener("pagehide", () => this.save());
     api
       .catalog()
       .then((c) => {
@@ -113,7 +114,7 @@ export class SimController {
     this.emit();
   }
 
-  private save() {
+  save() {
     this.lastSave = Date.now();
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ session: this.session, sessionId: this.sessionId, log: { ...this.log, tick: this.state.tick }, speed: this.speed, aiMode: this.aiMode, goldenId: this.goldenId, runs: this.interactiveRuns }));
@@ -187,6 +188,7 @@ export class SimController {
   }
   setAiMode(m: InvestigationMode) {
     this.aiMode = m;
+    this.save();
     this.emit();
   }
   setGuideStep(step: number | null) {
@@ -294,6 +296,7 @@ export class SimController {
       this.applyDue();
     }
     this.afterTicks();
+    this.save(); // persist command-log changes immediately (survives reloads)
     this.emit();
   }
 
