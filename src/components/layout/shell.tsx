@@ -114,7 +114,7 @@ function Notices() {
   return (
     <div className="fixed bottom-4 left-1/2 z-50 flex w-[min(560px,92vw)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
       {sim.notices.map((n) => (
-        <div key={n.id} className={cn("rounded-md border px-3 py-2 text-sm shadow-lg", n.kind === "error" ? "border-critical/40 bg-surface text-critical-text" : n.kind === "warn" ? "border-warning/50 bg-surface text-warning-text" : "border-border bg-surface text-text")}>
+        <div key={n.id} className={cn("rounded-md border px-3 py-2 text-sm shadow-lg", n.kind === "error" ? "border-critical/40 bg-surface text-critical-text" : n.kind === "warn" ? "border-warning/50 bg-surface text-warning-text" : n.kind === "success" ? "border-good/50 bg-surface text-good-text" : "border-border bg-surface text-text")}>
           {n.text}
         </div>
       ))}

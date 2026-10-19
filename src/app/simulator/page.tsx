@@ -2,7 +2,7 @@
 
 import { ClientOnly, PageLoading } from "@/client/client-only";
 import { useMemo, useState } from "react";
-import { Play, Square, Upload } from "lucide-react";
+import { Check, Play, Square, Upload } from "lucide-react";
 import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select, Switch } from "@/components/ui/primitives";
 import { TimeSeriesChart } from "@/components/charts";
@@ -18,20 +18,27 @@ import { fmtPct, fmtSimTime } from "@/lib/utils";
 function ScenarioCard({ def }: { def: ScenarioDefinition }) {
   const sim = useSim();
   const [target, setTarget] = useState<PartnerId>((def.defaultTarget ?? "partner-a") as PartnerId);
+  const [justClicked, setJustClicked] = useState(false);
+  const tgt = def.targetable ? target : null;
+  const running = def.kind !== "recovery" && sim.isScenarioActive(def.id, tgt);
+  const trigger = () => {
+    sim.startScenario(def.id, tgt);
+    setJustClicked(true);
+    setTimeout(() => setJustClicked(false), 2500);
+  };
   return (
     <Card className="flex flex-col p-4" data-testid={`scenario-${def.id}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Scenario {def.code}</div>
-          <h3 className="text-sm font-semibold text-text">{def.label}</h3>
-        </div>
-      </div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Scenario {def.code}</div>
+      <h3 className="text-sm font-semibold text-text">{def.label}</h3>
       <p className="mt-1 text-xs text-text-2">{def.description}</p>
-      <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[11px] text-muted">
-        {def.expectedEffects.map((e) => (
-          <li key={e}>{e}</li>
-        ))}
-      </ul>
+      <details className="mt-2 text-[11px] text-muted">
+        <summary className="cursor-pointer">What to expect</summary>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          {def.expectedEffects.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      </details>
       <div className="mt-auto flex flex-wrap items-end gap-2 pt-3">
         {def.targetable ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -45,8 +52,20 @@ function ScenarioCard({ def }: { def: ScenarioDefinition }) {
             </Select>
           </div>
         ) : null}
-        <Button size="sm" variant={def.kind === "recovery" ? "success" : "primary"} onClick={() => sim.startScenario(def.id, def.targetable ? target : null)} data-testid={`start-${def.id}`}>
-          <Play className="h-3.5 w-3.5" /> {def.kind === "recovery" ? "Recover" : "Trigger"}
+        <Button size="sm" variant={def.kind === "recovery" ? "success" : "primary"} onClick={trigger} disabled={running} data-testid={`start-${def.id}`}>
+          {running ? (
+            <>
+              <Check className="h-3.5 w-3.5" /> Running
+            </>
+          ) : justClicked ? (
+            <>
+              <Check className="h-3.5 w-3.5" /> Triggered
+            </>
+          ) : (
+            <>
+              <Play className="h-3.5 w-3.5" /> {def.kind === "recovery" ? "Recover" : "Trigger"}
+            </>
+          )}
         </Button>
       </div>
     </Card>
@@ -68,11 +87,11 @@ function Protections() {
   );
   return (
     <Card>
-      <CardHeader title="Deterministic gateway protections" subtitle="Operator-controlled. Never changed by AI. Independent of the AI toggle." />
+      <CardHeader title="Gateway protections" subtitle="Automatic safety rules. AI never changes these." />
       <div className="divide-y divide-border px-4">
         {row(
           "All protections",
-          allOn ? "Default protected posture" : "Uncontrolled / custom posture — shows what happens without isolation",
+          allOn ? "ON — the safe default" : "OFF or customised — try a scenario to see what goes wrong without them",
           <Button
             size="sm"
             variant={allOn ? "danger" : "success"}
@@ -82,6 +101,10 @@ function Protections() {
             {allOn ? "Disable all" : "Restore defaults"}
           </Button>,
         )}
+      </div>
+      <details className="border-t border-border">
+        <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-text-2">Advanced settings</summary>
+        <div className="divide-y divide-border px-4">
         {row("Per-partner concurrency limits", `Each partner ≤ ${c.perPartnerLimit} in-flight`, <Switch checked={c.isolationEnabled} onCheckedChange={(v) => sim.setControls({ isolationEnabled: v })} label="Per-partner concurrency limits" />)}
         {row(
           "Per-partner limit",
@@ -107,7 +130,8 @@ function Protections() {
           </Select>,
         )}
         {row("Retail capacity reservation", `${c.retailReservationSlots} of ${sim.state.config.gatewayCapacitySlots + c.extraCapacitySlots} slots reserved for retail`, <Switch checked={c.retailReservationEnabled} onCheckedChange={(v) => sim.setControls({ retailReservationEnabled: v })} label="Retail capacity reservation" />)}
-      </div>
+        </div>
+      </details>
     </Card>
   );
 }
@@ -159,8 +183,8 @@ function WhatIf() {
   return (
     <Card>
       <CardHeader
-        title="What do the deterministic controls contribute?"
-        subtitle="Same scenario and seed, no human or AI actions: protections ON vs OFF (headless, 180 simulated seconds)."
+        title="Why the protections matter"
+        subtitle="The same incident replayed twice for 3 simulated minutes: once with protections ON, once OFF."
         right={
           <Select value={scenario} onChange={(e) => setScenario(e.target.value)} className="h-8 text-xs" aria-label="What-if scenario">
             {[...PRIMARY_SCENARIO_IDS, ...EXTRA_SCENARIO_IDS]
@@ -173,33 +197,20 @@ function WhatIf() {
           </Select>
         }
       />
-      <div className="grid gap-4 p-4 lg:grid-cols-2">
-        <div>
-          <div className="mb-1 text-xs font-medium text-text-2">Retail banking P95 (ms)</div>
-          <TimeSeriesChart height={200} log data={res.rows.map((r) => ({ t: r.t, on: r.retailOn, off: r.retailOff }))} series={[{ key: "on", label: "Protections ON", color: "var(--s1)" }, { key: "off", label: "Protections OFF", color: "var(--s2)", dashed: true }]} unit=" ms" refLines={[{ y: 300, label: "target", tone: "critical" }]} ariaLabel="Retail P95 with and without protections" />
-        </div>
-        <div>
-          <div className="mb-1 text-xs font-medium text-text-2">Healthy neighbour ({ENTITY_PROFILES[res.observedPartner].name}) P95 (ms)</div>
-          <TimeSeriesChart height={200} log data={res.rows.map((r) => ({ t: r.t, on: r.otherOn, off: r.otherOff }))} series={[{ key: "on", label: "Protections ON", color: "var(--s1)" }, { key: "off", label: "Protections OFF", color: "var(--s2)", dashed: true }]} unit=" ms" refLines={[{ y: 400, label: "degraded", tone: "warning" }]} ariaLabel="Neighbour partner P95 with and without protections" />
-        </div>
-        <table className="tabular text-xs lg:col-span-2">
-          <thead className="text-muted">
-            <tr>
-              <th className="py-1 text-left font-medium">Outcome over 180 s</th>
-              <th className="py-1 text-right font-medium">Protections ON</th>
-              <th className="py-1 text-right font-medium">Protections OFF</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Retail target breach (s)</td><td className="text-right">{S.on.retailBreachSeconds}</td><td className="text-right">{S.off.retailBreachSeconds}</td></tr>
-            <tr><td>Other partners impaired (partner-seconds)</td><td className="text-right">{S.on.otherPartnerImpairedSeconds}</td><td className="text-right">{S.off.otherPartnerImpairedSeconds}</td></tr>
-            <tr><td>Peak gateway utilisation</td><td className="text-right">{fmtPct(S.on.peakUtilisation, 0)}</td><td className="text-right">{fmtPct(S.off.peakUtilisation, 0)}</td></tr>
-            <tr><td>{target ? `${ENTITY_PROFILES[target].name} mean success rate` : "Partner A mean success rate"}</td><td className="text-right">{fmtPct(S.on.targetSuccessRate, 0)}</td><td className="text-right">{fmtPct(S.off.targetSuccessRate, 0)}</td></tr>
-          </tbody>
-        </table>
-        <p className="text-[11px] text-muted lg:col-span-2">
-          Note the trade-off: with protections ON the breaker fast-fails the degraded partner&apos;s requests (lower success for that partner) to keep everyone else healthy. Capacity alone does not fix downstream latency.
-        </p>
+      <div className="space-y-3 p-4">
+        <div className="text-xs font-medium text-text-2">Retail banking response time (lower is better)</div>
+        <TimeSeriesChart height={200} data={res.rows.map((r) => ({ t: r.t, on: r.retailOn, off: r.retailOff }))} series={[{ key: "on", label: "Protections ON", color: "var(--s1)" }, { key: "off", label: "Protections OFF", color: "var(--s2)", dashed: true }]} unit=" ms" yLabel="milliseconds" refLines={[{ y: 300, label: "target 300 ms", tone: "critical" }]} ariaLabel="Retail response time with and without protections" />
+        <ul className="space-y-1 text-sm text-text-2">
+          <li>
+            Retail banking missed its target for <b className="text-text">{S.on.retailBreachSeconds} s</b> with protections, vs <b className="text-text">{S.off.retailBreachSeconds} s</b> without.
+          </li>
+          <li>
+            Healthy partners were dragged down for <b className="text-text">{S.on.otherPartnerImpairedSeconds}</b> partner-seconds with protections, vs <b className="text-text">{S.off.otherPartnerImpairedSeconds}</b> without.
+          </li>
+          <li className="text-xs text-muted">
+            The trade-off: protections deliberately fail the broken partner&apos;s requests fast ({fmtPct(S.on.targetSuccessRate, 0)} succeed vs {fmtPct(S.off.targetSuccessRate, 0)}) so everyone else stays healthy. Peak gateway load {fmtPct(S.on.peakUtilisation, 0)} vs {fmtPct(S.off.peakUtilisation, 0)}.
+          </li>
+        </ul>
       </div>
     </Card>
   );
@@ -208,10 +219,19 @@ function WhatIf() {
 function GoldenLoader() {
   const sim = useSim();
   const [id, setId] = useState(GOLDEN_SCENARIOS[0].id);
+  const [loading, setLoading] = useState(false);
   const gs = GOLDEN_SCENARIOS.find((g) => g.id === id)!;
+  const load = async () => {
+    setLoading(true);
+    try {
+      await sim.reset({ goldenId: id });
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Card>
-      <CardHeader title="Golden dataset" subtitle="Deterministic synthetic scenarios. Loading one resets the session to its initial conditions and schedules its trigger." />
+      <CardHeader title="Test scenarios (golden dataset)" subtitle="Ready-made incidents. Loading one resets the simulator and triggers it automatically." />
       <div className="space-y-2 p-4 text-xs">
         <div className="flex gap-2">
           <Select value={id} onChange={(e) => setId(e.target.value)} className="h-8 min-w-0 flex-1 text-xs" aria-label="Golden scenario">
@@ -221,17 +241,22 @@ function GoldenLoader() {
               </option>
             ))}
           </Select>
-          <Button size="sm" variant="primary" onClick={() => void sim.reset({ goldenId: id })} data-testid="load-golden">
-            <Upload className="h-3.5 w-3.5" /> Load
+          <Button size="sm" variant="primary" onClick={() => void load()} disabled={loading} data-testid="load-golden">
+            <Upload className="h-3.5 w-3.5" /> {loading ? "Loading…" : "Load"}
           </Button>
         </div>
         <p className="text-text-2">{gs.description}</p>
-        <p><span className="text-muted">Initial conditions:</span> {gs.initialConditions.description}</p>
-        <p><span className="text-muted">Trigger:</span> {gs.trigger.description}</p>
-        <p><span className="text-muted">Expected platform / retail impact:</span> {gs.expectedPlatformImpact} {gs.expectedRetailImpact}</p>
-        <p><span className="text-muted">Expected investigation:</span> {gs.expectedAi.description}</p>
+        <details>
+          <summary className="cursor-pointer text-muted">Details</summary>
+          <div className="mt-1 space-y-1">
+            <p><span className="text-muted">Initial conditions:</span> {gs.initialConditions.description}</p>
+            <p><span className="text-muted">Trigger:</span> {gs.trigger.description}</p>
+            <p><span className="text-muted">Expected impact:</span> {gs.expectedPlatformImpact} {gs.expectedRetailImpact}</p>
+            <p><span className="text-muted">Expected investigation:</span> {gs.expectedAi.description}</p>
+          </div>
+        </details>
         {gs.aiFault ? <p className="text-warning-text">Injects an AI {gs.aiFault} fault on AI-ON investigations (set below).</p> : null}
-        {sim.goldenId ? <p className="font-medium text-info-text">Loaded in current session: {sim.goldenId}</p> : null}
+        {sim.goldenId ? <p className="font-medium text-good-text">✓ Loaded: {sim.goldenId}</p> : null}
       </div>
     </Card>
   );
@@ -241,7 +266,7 @@ function Workflow() {
   const sim = useSim();
   return (
     <Card>
-      <CardHeader title="Investigation workflow" subtitle="How incidents get diagnosed. Gateway protections are never delayed by any of these settings." />
+      <CardHeader title="Investigation workflow" subtitle="Who works out what went wrong. Protections act instantly regardless." />
       <div className="space-y-3 p-4 text-xs text-text-2">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -289,7 +314,7 @@ function SimulatorPageInner() {
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div>
         <h1 className="text-lg font-semibold text-text">Incident simulator <SimTag /></h1>
-        <p className="text-sm text-text-2">Scenarios are reproducible from the same initial conditions (fixed seed). Use the clock controls above to pause or fast-forward.</p>
+        <p className="text-sm text-text-2">Pick a scenario and press Trigger. Then watch the Overview page. Same seed every time, so results are reproducible.</p>
       </div>
       <section aria-label="Scenarios" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {PRIMARY_SCENARIO_IDS.map((id) => (
@@ -297,7 +322,7 @@ function SimulatorPageInner() {
         ))}
       </section>
       <details className="rounded-lg border border-border bg-surface">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Additional scenarios (downstream errors, transient slowdown, ambiguous latency, high-rate, low-traffic)</summary>
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">More scenarios (6 edge cases)</summary>
         <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-5">
           {EXTRA_SCENARIO_IDS.map((id) => (
             <ScenarioCard key={id} def={SCENARIOS[id]} />
@@ -312,8 +337,11 @@ function SimulatorPageInner() {
         <div className="space-y-4">
           <Protections />
           <Workflow />
-          <AiFault />
           <GoldenLoader />
+          <details className="rounded-lg border border-border bg-surface">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Advanced: AI fault injection</summary>
+            <AiFault />
+          </details>
         </div>
       </div>
     </div>

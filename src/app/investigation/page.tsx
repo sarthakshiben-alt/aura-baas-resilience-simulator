@@ -156,7 +156,7 @@ function InvestigationPageInner() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-text">Incident investigation <SimTag /></h1>
-          <p className="text-sm text-text-2">The LLM investigates and recommends · the policy engine validates · a human approves · the simulator executes.</p>
+          <p className="text-sm text-text-2">AI (or the runbook) explains what went wrong and suggests a fix → safety rules check it → you approve or reject.</p>
         </div>
         {s.incidents.length > 1 ? (
           <Select value={inc?.id} onChange={(e) => setSelected(e.target.value)} aria-label="Select incident" className="h-8 text-xs">
@@ -177,24 +177,6 @@ function InvestigationPageInner() {
         <>
           <Header inc={inc} />
           <div className="grid gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader title="Relevant telemetry — P95 latency" subtitle="Affected services since 20 s before incident start (log scale)" />
-              <div className="p-3">
-                <TimeSeriesChart height={200} log data={entityRows(s, "p95Ms", win, ids)} series={entitySeries(ids)} unit=" ms" refLines={[{ y: 400, label: "degraded", tone: "warning" }]} ariaLabel="Affected service latency" />
-              </div>
-            </Card>
-            <Card>
-              <CardHeader title="Relevant telemetry — in-flight & error rate" subtitle="In-flight requests (worker slots held) for affected services" />
-              <div className="p-3">
-                <TimeSeriesChart height={200} data={entityRows(s, "inFlight", win, ids)} series={entitySeries(ids)} ariaLabel="Affected service in-flight requests" />
-              </div>
-            </Card>
-          </div>
-          <Card>
-            <CardHeader title="Incident timeline" subtitle="Simulated times (mm:ss)" />
-            <div className="p-4"><IncidentTimeline state={s} inc={inc} /></div>
-          </Card>
-          <div className="grid gap-4 xl:grid-cols-2">
             <div className="space-y-4">
               <DiagnosisPanel inc={inc} />
               <AssistantPanel incidentId={inc.id} />
@@ -204,7 +186,20 @@ function InvestigationPageInner() {
               <Outcome inc={inc} />
             </div>
           </div>
-          <Audit inc={inc} />
+          <Card>
+            <CardHeader title="Response time of the affected services" subtitle="Lower is better · from 20 s before the incident started" />
+            <div className="p-3">
+              <TimeSeriesChart height={200} data={entityRows(s, "p95Ms", win, ids)} series={entitySeries(ids)} unit=" ms" yLabel="milliseconds" refLines={[{ y: 400, label: "slow above 400 ms", tone: "warning" }]} ariaLabel="Affected service response time" />
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Incident timeline" subtitle="Simulated times (mm:ss)" />
+            <div className="p-4"><IncidentTimeline state={s} inc={inc} /></div>
+          </Card>
+          <details className="rounded-lg border border-border bg-surface">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Show audit log (every decision, who made it, what changed)</summary>
+            <Audit inc={inc} />
+          </details>
         </>
       )}
     </div>

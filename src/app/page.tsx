@@ -7,10 +7,9 @@ import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Kpi } from "@/components/ui/primitives";
 import { PartnerTable } from "@/components/dashboard/partner-table";
 import { IncidentTimeline } from "@/components/dashboard/timeline";
-import { TimeSeriesChart, entityRows, entitySeries, gatewayRows } from "@/components/charts";
-import { BreakerBadge, ProtectionBadge, RetailBadge, SeverityBadge, SimTag } from "@/components/status";
-import { PARTNER_IDS } from "@/lib/sim/types";
-import { fmtMs, fmtNum, fmtPct } from "@/lib/utils";
+import { TimeSeriesChart, focusRows, focusSeries } from "@/components/charts";
+import { ProtectionBadge, RetailBadge, SeverityBadge, SimTag } from "@/components/status";
+import { fmtMs, fmtPct } from "@/lib/utils";
 
 function OverviewPageInner() {
   const sim = useSim();
@@ -18,17 +17,17 @@ function OverviewPageInner() {
   const g = s.history.gateway.at(-1) ?? null;
   const open = s.incidents.filter((i) => i.status !== "resolved");
   const shown = open.at(-1) ?? s.incidents.at(-1) ?? null;
-  const openBreakers = PARTNER_IDS.filter((p) => s.runtime[p].breaker.state !== "closed").length;
+  const healthy = g ? 5 - g.degradedPartners : 5;
+  const series = focusSeries(s);
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <Card className="p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <h1 className="text-lg font-semibold text-text">Aura BaaS gateway — resilience overview</h1>
+            <h1 className="text-lg font-semibold text-text">Aura Bank gateway — is everything OK?</h1>
             <p className="mt-1 text-sm text-text-2">
-              Five fintech partners and Aura&apos;s retail banking share one API gateway. A slow partner downstream keeps requests in flight and can exhaust shared capacity. This simulator shows
-              deterministic protections containing that, and measures whether AI-assisted investigation adds value on top. <SimTag>Synthetic telemetry</SimTag>
+              Five fintech partners and Aura&apos;s own retail banking share one gateway. When one partner gets slow, the gateway&apos;s automatic protections stop it from dragging everyone else down. <SimTag>Simulated data</SimTag>
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -37,60 +36,53 @@ function OverviewPageInner() {
             </Button>
             <Button asChild variant="secondary">
               <Link href="/simulator">
-                <FlaskConical className="h-4 w-4" /> Free exploration
+                <FlaskConical className="h-4 w-4" /> Trigger an incident
               </Link>
             </Button>
           </div>
         </div>
       </Card>
 
-      <section aria-label="Platform metrics" className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <Kpi label="Total requests" value={g ? `${fmtNum(g.totalRps)}/s` : "—"} sub="offered, all services" />
-        <Kpi label="Platform P95" value={fmtMs(g?.platformP95Ms)} sub="request-weighted mixture" />
-        <Kpi label="Platform errors" value={fmtPct(g?.platformErrorRate, 2)} sub="incl. control rejections" />
-        <Kpi label="Gateway concurrency" value={fmtPct(g?.utilisation, 0)} sub={g ? `${fmtNum(g.allocatedSlots)} / ${g.capacitySlots} slots` : ""} status={g ? <ProtectionBadge status={g.protectionStatus} /> : null} />
-        <Kpi label="Active incidents" value={open.length} sub={shown ? <SeverityBadge severity={shown.severity} /> : "none"} />
-        <Kpi label="Degraded partners" value={g ? g.degradedPartners : 0} sub="of 5 not healthy" />
-        <Kpi label="Retail banking" value={fmtMs(g?.retailP95Ms)} sub="P95 vs 300 ms target" status={g ? <RetailBadge health={g.retailHealth} /> : null} />
-        <Kpi label="Circuit breakers" value={`${openBreakers} open`} sub={s.controls.breakerEnabled ? "of 5, auto-managed" : "disabled"} status={openBreakers ? <BreakerBadge state="open" /> : <BreakerBadge state="closed" enabled={s.controls.breakerEnabled} />} />
+      <section aria-label="Platform status" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi label="Partners healthy" value={`${healthy} / 5`} sub={healthy === 5 ? "all good" : `${5 - healthy} need attention`} />
+        <Kpi label="Retail banking" value={fmtMs(g?.retailP95Ms)} sub="response time · target ≤ 300 ms" status={g ? <RetailBadge health={g.retailHealth} /> : null} />
+        <Kpi label="Gateway load" value={fmtPct(g?.utilisation, 0)} sub="of shared capacity in use" status={g ? <ProtectionBadge status={g.protectionStatus} /> : null} />
+        <Kpi label="Open incidents" value={open.length} sub={open.length && shown ? <SeverityBadge severity={shown.severity} /> : "none"} />
       </section>
-
-      <Card>
-        <CardHeader title="Fintech partners and retail banking" subtitle="Per-service simulated telemetry, latest simulated second. 'Protected' = impaired but contained by a gateway control." />
-        <PartnerTable />
-      </Card>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <CardHeader title="P95 latency by service" subtitle="Log scale · last 3 simulated minutes" />
+          <CardHeader title="How fast is each service responding?" subtitle="95% of requests finish faster than this. Lower is better. Last 3 simulated minutes." />
           <div className="p-3">
-            <TimeSeriesChart data={entityRows(s, "p95Ms")} series={entitySeries()} unit=" ms" log refLines={[{ y: 400, label: "degraded 400 ms", tone: "warning" }, { y: 300, label: "retail target 300 ms", tone: "critical" }]} ariaLabel="P95 latency by service over time" />
+            <TimeSeriesChart
+              data={focusRows(s, "p95Ms")}
+              series={series}
+              unit=" ms"
+              yLabel="milliseconds"
+              refLines={[{ y: 400, label: "slow above 400 ms", tone: "warning" }]}
+              ariaLabel="Response time of the most affected partner, other partners and retail banking"
+            />
+            <p className="mt-2 text-xs text-muted">A gap in the line means the circuit breaker has paused traffic to that partner — that&apos;s the protection working, not a recovery.</p>
           </div>
         </Card>
         <Card>
-          <CardHeader title="In-flight requests by partner" subtitle="Gateway worker slots held · per-partner limit shown" />
+          <CardHeader title="What share of requests succeed?" subtitle="Higher is better. 100% = every request answered." />
           <div className="p-3">
-            <TimeSeriesChart data={entityRows(s, "inFlight", 180, PARTNER_IDS)} series={entitySeries(PARTNER_IDS)} refLines={[{ y: s.controls.perPartnerLimit, label: `limit ${s.controls.perPartnerLimit}`, tone: "muted" }]} ariaLabel="In-flight requests per partner" />
-          </div>
-        </Card>
-        <Card>
-          <CardHeader title="Shared gateway utilisation" subtitle="Allocated slots / capacity (%) and demand pressure (capped at 200%)" />
-          <div className="p-3">
-            <TimeSeriesChart data={gatewayRows(s)} series={[{ key: "utilisation", label: "Utilisation", color: "var(--s1)" }, { key: "pressure", label: "Demand pressure", color: "var(--s7)", dashed: true }]} unit="%" refLines={[{ y: 85, label: "pressure 85%", tone: "warning" }]} ariaLabel="Gateway utilisation over time" />
-          </div>
-        </Card>
-        <Card>
-          <CardHeader title="Retail banking P95 vs service target" subtitle="Protected service · simulated 300 ms P95 target" />
-          <div className="p-3">
-            <TimeSeriesChart data={gatewayRows(s)} series={[{ key: "retail", label: "Retail P95", color: "var(--s6)" }]} unit=" ms" refLines={[{ y: 300, label: "target 300 ms", tone: "critical" }, { y: 255, label: "at-risk 255 ms", tone: "warning" }]} ariaLabel="Retail banking P95 latency vs target" />
+            <TimeSeriesChart data={focusRows(s, "successRate")} series={series} unit="%" yLabel="% succeeded" domain={[0, 100]} ariaLabel="Request success rate of the most affected partner, other partners and retail banking" />
+            <p className="mt-2 text-xs text-muted">If only the affected partner drops while the others stay near 100%, the problem has been contained.</p>
           </div>
         </Card>
       </div>
 
       <Card>
+        <CardHeader title="Services right now" subtitle="Protected = having problems, but contained by the gateway." />
+        <PartnerTable />
+      </Card>
+
+      <Card>
         <CardHeader
-          title={shown ? `Incident timeline — ${shown.id}` : "Incident timeline"}
-          subtitle={shown ? `Status: ${shown.status} · times are simulated (mm:ss)` : undefined}
+          title={shown ? `Incident progress — ${shown.id}` : "Incident progress"}
+          subtitle={shown ? `Status: ${shown.status} · simulated time (mm:ss)` : undefined}
           right={
             shown ? (
               <Button asChild size="sm" variant="secondary">
@@ -101,7 +93,7 @@ function OverviewPageInner() {
             ) : null
           }
         />
-        <div className="p-4">{shown ? <IncidentTimeline state={s} inc={shown} /> : <Empty>No incidents yet. Trigger a scenario from the Incident simulator or start the guided demo.</Empty>}</div>
+        <div className="p-4">{shown ? <IncidentTimeline state={s} inc={shown} compact /> : <Empty>No incidents yet. Trigger one from the Incident simulator or start the guided demo.</Empty>}</div>
       </Card>
     </div>
   );

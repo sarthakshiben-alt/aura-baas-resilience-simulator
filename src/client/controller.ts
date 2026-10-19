@@ -3,6 +3,9 @@ import { createInitialState, step } from "@/lib/sim/engine";
 import type { ControlsPatch, Incident, InvestigationMode, SimState } from "@/lib/sim/types";
 import { applyCommand, CommandError, insertCommand, replay, type Command, type SimLog } from "@/lib/sim/workflow";
 import { getGolden } from "@/lib/golden/dataset";
+import { SCENARIOS } from "@/lib/sim/scenarios";
+import { ENTITY_PROFILES } from "@/lib/sim/config";
+import { fmtSimTime } from "@/lib/utils";
 import { goldenCommands } from "@/lib/golden/harness";
 import { incidentMetrics, type RunMetrics } from "@/lib/comparison/metrics";
 import type { AssistantAnswer } from "@/lib/ai/assistant";
@@ -12,7 +15,7 @@ import { api, ApiError, type PublicAiStatus } from "./api";
 
 export interface Notice {
   id: number;
-  kind: "info" | "warn" | "error";
+  kind: "info" | "success" | "warn" | "error";
   text: string;
 }
 
@@ -115,7 +118,7 @@ export class SimController {
         this.emit();
       })
       .catch(() => {});
-    if (!this.restore()) await this.reset();
+    if (!this.restore()) await this.reset({ announce: false });
     this.ready = true;
     this.start();
     this.emit();
@@ -154,7 +157,7 @@ export class SimController {
     }
   }
 
-  async reset(opts: { goldenId?: string | null } = {}) {
+  async reset(opts: { goldenId?: string | null; announce?: boolean } = {}) {
     const gs = opts.goldenId ? getGolden(opts.goldenId) : null;
     const seed = gs?.initialConditions.seed ?? DEFAULT_SEED;
     try {
@@ -178,6 +181,12 @@ export class SimController {
     this.autoStarted.clear();
     this.applyDue();
     this.save();
+    if (gs) {
+      const at = gs.trigger.script[0]?.at ?? 0;
+      this.notify("success", `Loaded ${gs.id} — ${gs.title}. Reset to its starting conditions; the incident triggers automatically at ${fmtSimTime(at)} (sim clock).`);
+    } else if (opts.announce !== false) {
+      this.notify("success", "Scenario reset: all services back to a healthy baseline.");
+    }
     this.emit();
   }
 
@@ -336,13 +345,34 @@ export class SimController {
   }
 
   startScenario(scenarioId: string, target: string | null) {
+    const before = this.state.scenarioRuns.length;
     this.addCommand({ k: "start", at: this.state.tick, scenarioId, target });
+    if (this.state.scenarioRuns.length > before) {
+      const def = SCENARIOS[scenarioId];
+      const who = target && target in ENTITY_PROFILES ? ENTITY_PROFILES[target as keyof typeof ENTITY_PROFILES].name : null;
+      this.notify(
+        "success",
+        def?.kind === "recovery"
+          ? `Recovery triggered${who ? ` for ${who}` : ""}: its downstream returns to normal over ~15 s.`
+          : `Triggered: ${def?.label ?? scenarioId}${who ? ` on ${who}` : ""}. Watch the Overview — monitoring should detect it within seconds.`,
+      );
+    }
   }
   stopRun(runId: string) {
+    const run = this.state.scenarioRuns.find((r) => r.id === runId);
     this.addCommand({ k: "stop", at: this.state.tick, runId });
+    if (run?.stoppedAt !== null) this.notify("success", `Stopped: ${run?.label ?? runId}. Metrics ramp back to baseline.`);
   }
   setControls(patch: ControlsPatch) {
     this.addCommand({ k: "controls", at: this.state.tick, patch });
+    this.notify("success", "Gateway protection settings updated.");
+  }
+  /** True while a run of this scenario on this target is still perturbing the system. */
+  isScenarioActive(scenarioId: string, target: string | null): boolean {
+    const t = this.state.tick;
+    return this.state.scenarioRuns.some(
+      (r) => r.scenarioId === scenarioId && (r.targetEntityId ?? null) === (target ?? null) && r.stoppedAt === null && r.perturbations.some((p) => (p.endAt === null || p.endAt > t) && (p.plannedEndAt === null || p.plannedEndAt > t)),
+    );
   }
 
   // ------------------------------------------------------------ server workflow

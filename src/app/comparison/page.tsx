@@ -1,11 +1,11 @@
 "use client";
 
 import { ClientOnly, PageLoading } from "@/client/client-only";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlaskConical, LoaderCircle, Play } from "lucide-react";
 import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select } from "@/components/ui/primitives";
-import { GroupedBarChart } from "@/components/charts";
+import { LabeledBarChart } from "@/components/charts";
 import { Chip, SimTag, SourceBadge } from "@/components/status";
 import { GOLDEN_SCENARIOS } from "@/lib/golden/dataset";
 import { SCENARIOS } from "@/lib/sim/scenarios";
@@ -188,17 +188,6 @@ function Paired() {
           </div>
           <MetricsTable off={r.off.metrics} rules={r.rules.metrics} on={r.on.metrics} />
           <Sensitivity rows={r.sensitivity} chosen={r.config.manualTriageSeconds} />
-          <GroupedBarChart
-            ariaLabel="Simulated durations AI OFF vs AI ON"
-            unit=" s"
-            data={[
-              { metric: "Detection", off: r.off.metrics.timeToDetectionS, rules: r.rules.metrics.timeToDetectionS, on: r.on.metrics.timeToDetectionS },
-              { metric: "Diagnosis", off: r.off.metrics.timeToDiagnosisS, rules: r.rules.metrics.timeToDiagnosisS, on: r.on.metrics.timeToDiagnosisS },
-              { metric: "Recommendation", off: r.off.metrics.timeToRecommendationS, rules: r.rules.metrics.timeToRecommendationS, on: r.on.metrics.timeToRecommendationS },
-              { metric: "Recovery", off: r.off.metrics.timeToRecoveryS, rules: r.rules.metrics.timeToRecoveryS, on: r.on.metrics.timeToRecoveryS },
-            ]}
-            series={[{ key: "off", label: "Manual runbook", color: "var(--s1)" }, { key: "rules", label: "Automated rules (no AI)", color: "var(--s3)" }, { key: "on", label: "AI-assisted", color: "var(--s2)" }]}
-          />
           <div className="grid gap-3 text-xs md:grid-cols-3">
             {(["off", "rules", "on"] as const).map((m) => (
               <div key={m} className="rounded-md border border-border p-3">
@@ -217,9 +206,8 @@ function Paired() {
   );
 }
 
-function BusinessValue() {
+function BusinessValue({ cost }: { cost: number }) {
   const sim = useSim();
-  const [cost, setCost] = useState(CASE_COST_PER_DOWNTIME_MINUTE_USD);
   const [price, setPrice] = useState<string>("");
   const r = sim.paired.result;
   if (!r) return null;
@@ -229,11 +217,7 @@ function BusinessValue() {
       <CardHeader title="Business impact (illustrative estimate)" subtitle="Derived from the paired run above. Not realised savings." right={<SimTag>Illustrative</SimTag>} />
       <div className="grid gap-4 p-4 lg:grid-cols-3">
         <div className="space-y-3 text-xs">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="cost">Assumed impact per partner downtime minute (USD)</Label>
-            <input id="cost" type="number" min={0} step={100} value={cost} onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))} className="h-9 rounded-md border border-border bg-surface px-2 text-sm" />
-            <span className="text-muted">Case-provided assumption (≈ $4,500/min for one fintech partner). Not independently verified.</span>
-          </div>
+          <p className="text-muted">Using ${cost.toLocaleString("en-US")} per partner downtime minute (set in the SLA section above).</p>
           <div className="flex flex-col gap-1">
             <Label htmlFor="price">AI price per million tokens (USD, optional)</Label>
             <input id="price" type="number" min={0} step={0.01} value={price} placeholder="not set → AI cost N/A" onChange={(e) => setPrice(e.target.value)} className="h-9 rounded-md border border-border bg-surface px-2 text-sm" />
@@ -274,6 +258,99 @@ function BusinessValue() {
         </div>
       </div>
     </Card>
+  );
+}
+
+const usd0 = (v: number) => `${v < 0 ? "−" : ""}$${Math.round(Math.abs(v)).toLocaleString("en-US")}`;
+const min1 = (s: number) => `${(Math.round((s / 60) * 10) / 10).toLocaleString("en-US")} min`;
+
+function SlaPenalty({ cost, setCost }: { cost: number; setCost: (v: number) => void }) {
+  const sim = useSim();
+  const r = sim.paired.result;
+  return (
+    <Card data-testid="sla-penalty">
+      <CardHeader title="What does downtime cost? (SLA penalty)" subtitle="Same incident, handled three ways. Every minute a partner is down costs the bank money." right={<SimTag>Illustrative</SimTag>} />
+      <div className="space-y-4 p-4">
+        <div className="flex flex-wrap items-end gap-3 text-xs">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="sla-cost">SLA penalty per minute of partner downtime (USD)</Label>
+            <input id="sla-cost" type="number" min={0} step={100} value={cost} onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))} className="h-9 w-40 rounded-md border border-border bg-surface px-2 text-sm" />
+          </div>
+          <p className="max-w-xl text-muted">Default ${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</p>
+        </div>
+        {!r ? (
+          <Empty>{sim.paired.loading ? "Running the same incident three ways (manual, automated rules, AI)… this takes a few seconds." : sim.paired.error ? `Comparison failed: ${sim.paired.error}` : "Waiting for the comparison to run…"}</Empty>
+        ) : (
+          <SlaBody cost={cost} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function SlaBody({ cost }: { cost: number }) {
+  const r = useSim().paired.result!;
+  const arms = [
+    { key: "off", label: `Manual runbook (${Math.round(r.config.manualTriageSeconds / 60)} min triage)`, color: "var(--s7)", down: r.off.metrics.primaryDowntimeSeconds },
+    { key: "rules", label: "Automated rules (no AI)", color: "var(--s3)", down: r.rules.metrics.primaryDowntimeSeconds },
+    { key: "on", label: "AI-assisted", color: "var(--s1)", down: r.on.metrics.primaryDowntimeSeconds },
+  ];
+  const pen = (sec: number) => (sec / 60) * cost;
+  const manual = arms[0].down;
+  const autoSaved = manual - arms[1].down;
+  const aiExtra = arms[1].down - arms[2].down;
+  const cf = r.controlsCounterfactual;
+  const pb = r.protectedBaseline;
+  const fallback = r.on.metrics.diagnosisSource !== "llm";
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-text-2">
+        Incident: <b className="text-text">{r.label}</b>
+        {fallback ? <Chip tone="warning">AI used the rule-based fallback in this run</Chip> : <Chip tone="info">Real AI responses</Chip>}
+      </div>
+      <LabeledBarChart height={150} ariaLabel="SLA penalty per workflow" format={(v) => usd0(v)} data={arms.map((a) => ({ label: a.label, value: Math.round(pen(a.down)), color: a.color }))} />
+      <div className="overflow-x-auto">
+        <table className="tabular w-full min-w-[560px] text-sm" data-testid="sla-table">
+          <thead className="text-left text-xs text-muted">
+            <tr>
+              <th className="py-1.5 font-medium">How the incident was handled</th>
+              <th className="py-1.5 text-right font-medium">Partner downtime</th>
+              <th className="py-1.5 text-right font-medium">SLA penalty</th>
+              <th className="py-1.5 text-right font-medium">Time saved vs manual</th>
+              <th className="py-1.5 text-right font-medium">Money saved vs manual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {arms.map((a) => (
+              <tr key={a.key} className="border-t border-border">
+                <td className="py-1.5 text-text">
+                  <span aria-hidden className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: a.color }} />
+                  {a.label}
+                </td>
+                <td className="py-1.5 text-right">{min1(a.down)}</td>
+                <td className="py-1.5 text-right font-semibold text-text">{usd0(pen(a.down))}</td>
+                <td className="py-1.5 text-right">{a.key === "off" ? "—" : min1(manual - a.down)}</td>
+                <td className={cn("py-1.5 text-right font-semibold", a.key !== "off" && manual - a.down > 0 ? "text-good-text" : "")}>{a.key === "off" ? "—" : usd0(pen(manual - a.down))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="space-y-1.5 text-sm text-text-2">
+        <li>
+          <b className="text-text">Deterministic automation</b> (rules that start the moment the problem is detected) saves <b className="text-good-text">{min1(autoSaved)} · {usd0(pen(autoSaved))}</b> compared with waiting for a human to triage.
+        </li>
+        <li>
+          <b className="text-text">AI on top of those rules</b> {aiExtra > 0 ? <>saves a further <b className="text-good-text">{min1(aiExtra)} · {usd0(pen(aiExtra))}</b>.</> : aiExtra < 0 ? <>costs an extra <b className="text-critical-text">{min1(-aiExtra)} · {usd0(pen(-aiExtra))}</b>.</> : <>saves <b className="text-text">nothing extra</b> in this incident — the rules were already as fast.</>}
+        </li>
+        <li className="text-xs text-muted">
+          Not counted above: the gateway protections (on in all three) also kept retail banking within its target for {Math.max(0, cf.retailBreachSeconds - pb.retailBreachSeconds)} s more and kept the other partners healthy for {Math.max(0, cf.otherPartnerImpairedSeconds - pb.otherPartnerImpairedSeconds)} partner-seconds more than with no protections.
+        </li>
+      </ul>
+      <p className="text-[11px] text-muted">
+        Honest reading: most of the saving comes from automating the response, not from AI. The manual figure depends on the assumed triage time — change it in the top bar (AI OFF) or under &quot;Detailed results&quot; below.
+      </p>
+    </>
   );
 }
 
@@ -388,23 +465,44 @@ function Interactive() {
 
 function ComparisonPageInner() {
   const sim = useSim();
+  const [cost, setCost] = useState(CASE_COST_PER_DOWNTIME_MINUTE_USD);
+  const { ready, paired, manualTriageMinutes } = sim;
+  useEffect(() => {
+    if (ready && !paired.result && !paired.loading && !paired.error) void sim.runPaired({ goldenId: "GS-01", operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes });
+  }, [sim, ready, paired.result, paired.loading, paired.error, manualTriageMinutes]);
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <h1 className="text-lg font-semibold text-text">AI ON vs AI OFF — performance comparison <SimTag /></h1>
+          <h1 className="text-lg font-semibold text-text">Does AI actually help? <SimTag /></h1>
           <p className="mt-1 text-sm text-text-2">
-            Three arms, same incident: a <b>manual runbook</b> (on-call engineer, with an <i>assumed</i> triage time), an <b>automated rule-based runbook</b> (no AI), and <b>AI-assisted</b> investigation. Gateway safeguards act immediately and identically in every arm. Comparing AI with automated rules isolates what AI itself adds; comparing it with the manual runbook mostly measures automation. If AI does not outperform, this page shows that.
+            The same incident is handled three ways: a <b>human following a runbook</b>, <b>automated rules</b> (no AI), and <b>AI-assisted</b>. The gateway protections work the same in all three, so the difference is only in how fast the problem gets diagnosed and fixed.
           </p>
         </div>
         <div className="rounded-md border border-border bg-surface px-3 py-2 text-xs">
           Live AI: {sim.aiStatus?.configured ? <b className="text-info-text">{sim.aiStatus.provider} / {sim.aiStatus.model}</b> : <b className="text-warning-text">not configured (AI ON → labelled fallback)</b>}
         </div>
       </div>
-      <Paired />
-      <BusinessValue />
-      <Benchmark />
-      <Interactive />
+      <SlaPenalty cost={cost} setCost={setCost} />
+      <details className="rounded-lg border border-border bg-surface" data-testid="comparison-details">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Detailed results — change the scenario, every metric, sensitivity to the triage assumption, business attribution</summary>
+        <div className="space-y-4 p-3">
+          <Paired />
+          <BusinessValue cost={cost} />
+        </div>
+      </details>
+      <details className="rounded-lg border border-border bg-surface">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Diagnosis accuracy benchmark (all 18 test scenarios)</summary>
+        <div className="p-3">
+          <Benchmark />
+        </div>
+      </details>
+      <details className="rounded-lg border border-border bg-surface">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Your own runs</summary>
+        <div className="p-3">
+          <Interactive />
+        </div>
+      </details>
     </div>
   );
 }

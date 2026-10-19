@@ -238,11 +238,11 @@ export function GuidedDemo() {
           <p>A paired run replays the same scenario three times from identical initial conditions: a <b>manual runbook</b> (with your assumed {sim.manualTriageMinutes} min triage), an <b>automated rule-based runbook</b> (no AI) and <b>AI-assisted</b> — same protections, same labelled simulated operator.</p>
           {r ? (
             <p className="text-xs">
-              Recovery: manual {fmtSecs(r.off.metrics.timeToRecoveryS)}, automated rules {fmtSecs(r.rules.metrics.timeToRecoveryS)}, AI {fmtSecs(r.on.metrics.timeToRecoveryS)}. Compare AI with <b>automated rules</b> to see what AI itself adds; the gap to the manual runbook is mostly the triage assumption. {r.on.metrics.diagnosisSource !== "llm" ? "AI used the rule-based fallback in this run, so it does not measure AI value." : ""}
+              Recovery: manual {fmtSecs(r.off.metrics.timeToRecoveryS)}, automated rules {fmtSecs(r.rules.metrics.timeToRecoveryS)}, AI {fmtSecs(r.on.metrics.timeToRecoveryS)}. Compare AI with <b>automated rules</b> to see what AI itself adds; the gap to the manual runbook is mostly the triage assumption. The <b>SLA penalty</b> card on this page turns those minutes into dollars at $4,500/min. {r.on.metrics.diagnosisSource !== "llm" ? "AI used the rule-based fallback in this run, so it does not measure AI value." : ""}
             </p>
           ) : sim.paired.loading ? (
             <p className="flex items-center gap-2 text-xs text-muted">
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Running both modes…
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Running all three…
             </p>
           ) : null}
         </>
