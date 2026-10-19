@@ -129,7 +129,14 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 | Unsafe recommendations blocked by policy | 0 proposed | 1 proposed, 1 blocked |
 | Median latency | ~1 ms | 3.2 s |
 
-0. **The triage assumption drives the headline.** GS-01 with 10 min assumed triage (simulated; AI arm modelled at the measured 3.2 s median Groq latency with rule-quality diagnosis): manual runbook recovers at 728 s, automated rules at 128 s, AI at 168 s. "AI vs manual" looks like ~$42k avoided at $4,500/min, but **all** of it comes from automating the runbook. AI's marginal effect over automated rules on that scenario was slightly negative (its latency missed a breaker probe window).
+0. **The triage assumption drives the headline.** Live three-way paired runs on the deployed app (real Groq `qwen/qwen3.8-27b` calls, 10 min assumed manual triage; [`docs/results/`](docs/results/README.md)):
+
+   | Scenario | Manual runbook | Automated rules (no AI) | AI-assisted |
+   |---|---|---|---|
+   | GS-01 verified recovery | 728 s | 167 s | 167 s |
+   | GS-18 verified recovery | 729 s | 129 s | 130 s |
+
+   "AI vs manual" looks like ~$42k avoided at $4,500/min, but **all** of it comes from automating the runbook; AI over automated rules added ±0–1 s. The sensitivity table shows the AI advantage tracks the assumed triage time almost one-for-one.
 1. **Deterministic controls deliver most of the protection.** Scenario A over 180 s: retail breach 0 s with protections vs 164 s without; neighbour impairment 0 vs 656 partner-seconds.
 2. **AI rarely wins on speed.** Breaker cycles absorb seconds of diagnosis delay; paired runs showed identical recovery for a 2 s slower diagnosis.
 3. **AI adds value only where rules are wrong — and fails in risky ways.** It solved the pre-registered rule gap (GS-18) but was overconfident on ambiguous evidence (GS-09) and misread protective fast-fails as partner errors (GS-02, GS-15). The policy engine blocked its one unsafe proposal.

@@ -1,4 +1,22 @@
-# Live benchmark results
+# Live results
+
+## Three-way paired runs on the deployed app (2026-10-19, Groq `qwen/qwen3.8-27b`, 10 min assumed manual triage)
+
+Artifact: [`paired-2026-10-19-live-groq-qwen3.8-27b.json`](paired-2026-10-19-live-groq-qwen3.8-27b.json). Same seed, scenario and protections in every arm; simulated operator with a 20 s decision delay.
+
+| Scenario | Manual runbook | Automated rules (no AI) | AI-assisted | AI source |
+|---|---|---|---|---|
+| GS-01 diagnosis / recovery | 608 s / 728 s | 8 s / 167 s | 10 s / 167 s | real LLM (2.2 s) |
+| GS-18 diagnosis / recovery | 608 s / 729 s | 8 s / 129 s | 10 s / 130 s | real LLM (1.3 s) |
+| GS-09 diagnosis / recovery | 619 s / not resolvable | 19 s / not resolvable | 19 s / not resolvable | fallback (rate-limited) |
+
+- The AI-vs-manual gap equals the triage **assumption** (sensitivity: 0 min → 0 s, 10 min → +561 s on GS-01). An automated rule engine captures it without AI.
+- GS-18 is solved by automated rules here because, diagnosing seconds after detection, the traffic ramp (1.35×) has not yet happened; in the benchmark (context captured 20 s after detection) the rules fail it. Diagnosis timing changes the available evidence.
+- GS-09 is ambiguous by design: no arm can resolve it from gateway telemetry, which is the correct outcome.
+
+---
+
+# Golden-dataset benchmark
 
 **Illustrative benchmark on a synthetic golden dataset. Not a statistical study.**
 
