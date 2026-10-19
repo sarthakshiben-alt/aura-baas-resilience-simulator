@@ -6,7 +6,7 @@
 
 - Artifact: [`benchmark-2026-10-19-groq-qwen3.8-27b.json`](benchmark-2026-10-19-groq-qwen3.8-27b.json)
 - Reproduce: `scripts/benchmark-live.ts` (identical scenarios and prompt; waits out free-tier rate limits — 16 waits over 32 calls)
-- **Pre-registration:** every golden scenario, including GS-18, was committed (last change `b485313`, 08:45 UTC) **before** the first live LLM call (09:04 UTC). Scenarios were not changed after seeing results.
+- **Pre-registration:** every golden scenario, including GS-18, was committed (last change `7a8d59b`, 08:45 UTC) **before** the first live LLM call (09:04 UTC). Scenarios were not changed after seeing results.
 
 | Metric | Rules (AI OFF) | qwen3.8-27b (AI ON) |
 |---|---|---|
