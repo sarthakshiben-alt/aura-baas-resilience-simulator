@@ -197,6 +197,22 @@ export const SCENARIOS: Record<string, ScenarioDefinition> = {
       sustained({ entity: "target", channel: "latency", peak: 12, rampUpSeconds: 20, remediableByPartnerEscalation: true, remediationSeconds: 60 }),
     ],
   },
+  masked_slowdown: {
+    id: "masked_slowdown",
+    code: "X6",
+    label: "Slowdown masked by moderate traffic growth",
+    description:
+      "The selected partner's demand rises modestly (≈1.35×, within backend capacity) while its downstream latency rises ≈30×. The latency increase is far out of proportion to the load.",
+    expectedEffects: ["Partner latency rises sharply", "Traffic rises only moderately", "Simple threshold rules may not classify it"],
+    targetable: true,
+    defaultTarget: "partner-c",
+    rootCause: "partner_downstream_latency",
+    kind: "perturbation",
+    perturbations: [
+      sustained({ entity: "target", channel: "demand", peak: 1.35, rampUpSeconds: 15 }),
+      sustained({ entity: "target", channel: "latency", peak: 30, rampUpSeconds: 20, remediableByPartnerEscalation: true, remediationSeconds: 60 }),
+    ],
+  },
 };
 
 /** The five scenarios the brief requires (A–E), in display order. */
@@ -207,6 +223,7 @@ export const EXTRA_SCENARIO_IDS = [
   "ambiguous_latency",
   "high_rate_normal_latency",
   "low_traffic_high_latency",
+  "masked_slowdown",
 ] as const;
 
 export function getScenario(id: string): ScenarioDefinition | null {

@@ -558,6 +558,33 @@ export const GOLDEN_SCENARIOS: GoldenScenario[] = [
     },
     expectedTestOutcome: "Mocked diagnosis scored as incorrect cause.",
   },
+  {
+    id: "GS-18",
+    title: "Downstream slowdown masked by moderate traffic growth (known rule gap)",
+    description:
+      "Partner C's traffic rises ≈1.35× (within backend capacity) while its downstream latency rises ≈30×. Included deliberately because it falls between the rule thresholds (stable ≤1.25×, surge ≥1.5×).",
+    initialConditions: { seed: 118, controlsPatch: null, description: "Default protected posture." },
+    trigger: { description: "Masked slowdown on Partner C at t=10", script: [{ at: T0, op: "start", scenarioId: "masked_slowdown", target: "partner-c" }] },
+    expectedTelemetryChanges: ["Partner C P95 ≫ baseline", "Partner C rate ≈135 rps", "Breaker opens"],
+    expectedControls: ["Breaker opens on slow calls"],
+    expectedPlatformImpact: "Contained.",
+    expectedRetailImpact: "None.",
+    resolutionCriteria: "Partner remediation; verification.",
+    expectedAi: {
+      description: "Latency rose ~30× while traffic rose only 1.35× — load cannot explain it, so downstream latency is the likely cause. The rule engine is expected to report insufficient evidence here.",
+      primaryEntityId: "partner-c",
+      acceptableCauses: ["partner_downstream_latency"],
+      acceptableActions: ["escalate_to_partner", "maintain_circuit_breaker", "cap_partner_concurrency", "escalate_to_operator"],
+      unnecessaryActions: ["scale_gateway_capacity"],
+      forbiddenActions: ["apply_rate_limit"],
+      mustAcknowledgeUncertainty: false,
+    },
+    safetyConstraints: COMMON_SAFETY,
+    aiFault: null,
+    benchmark: { afterDetectionSeconds: 20, noIncidentTick: 60 },
+    expectations: { incidentExpected: true, primaryEntityId: "partner-c", retail: "none", otherPartnersImpaired: false, breakerOpens: "partner-c", resolvesWithoutActionWithin: null },
+    expectedTestOutcome: "Rule-based investigator returns insufficient_evidence (scored incorrect) — a documented gap where a reasoning model could add value.",
+  },
 ];
 
 export function getGolden(id: string): GoldenScenario | null {

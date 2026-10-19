@@ -202,6 +202,8 @@ describe("AI investigation", () => {
     expect(top("GS-09").likelyCauses[0].category).toBe("insufficient_evidence");
     expect(top("GS-13").likelyCauses[0].category).toBe("no_incident");
     expect(top("GS-04").likelyCauses[0].category).toBe("shared_gateway_saturation");
+    // Documented rule gap: disproportionate latency with moderate (1.35×) traffic growth.
+    expect(top("GS-18").likelyCauses[0].category).toBe("insufficient_evidence");
     for (const id of ["GS-01", "GS-02", "GS-05", "GS-14"]) expect(validateDiagnosis(top(id)).ok).toBe(true);
   });
 
