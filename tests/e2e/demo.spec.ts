@@ -51,7 +51,7 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await expect(page.getByTestId("ai-toggle")).toContainText("OFF");
     await page.getByTestId("triage-minutes").selectOption("0");
     await page.getByTestId("start-partner_slowdown").click();
-    await expect(page.getByText(/^Triggered: /)).toBeVisible();
+    await expect(page.getByText(/Triggered: Partner slowdown/)).toBeVisible();
     await expect(page.getByTestId("start-partner_slowdown")).toBeDisabled();
     await page.goto("/investigation");
     await expect(page.getByTestId("incident-id")).toHaveText("INC-001", { timeout: 30_000 });

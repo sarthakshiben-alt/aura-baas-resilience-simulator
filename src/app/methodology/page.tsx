@@ -7,7 +7,7 @@ import { CASE_COST_PER_DOWNTIME_MINUTE_USD } from "@/lib/comparison/business";
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="rounded-lg border border-border bg-surface p-5">
+    <section id={id} className="rounded-2xl border border-border bg-surface shadow-sm p-5">
       <h2 className="mb-2 text-base font-semibold text-text">{title}</h2>
       <div className="space-y-2 text-sm leading-relaxed text-text-2">{children}</div>
     </section>
@@ -22,7 +22,7 @@ export default function MethodologyPage() {
   return (
     <div className="mx-auto max-w-[1100px] space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-text">Methodology & assumptions</h1>
+        <h1 className="text-xl font-extrabold text-text">📐 Methodology & assumptions</h1>
         <p className="text-sm text-text-2">Everything on this site is synthetic. These are engineering assumptions for a case study, not real Aura telemetry or verified SLAs.</p>
       </div>
 

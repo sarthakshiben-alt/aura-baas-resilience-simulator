@@ -12,6 +12,7 @@ import { EXTRA_SCENARIO_IDS, PRIMARY_SCENARIO_IDS, SCENARIOS, type ScenarioDefin
 import { perturbationFinished } from "@/lib/sim/engine";
 import { runWhatIf } from "@/lib/sim/whatif";
 import { GOLDEN_SCENARIOS } from "@/lib/golden/dataset";
+import { FEATURED_GOLDEN } from "@/lib/golden/featured";
 import { PARTNER_IDS, type PartnerId } from "@/lib/sim/types";
 import { fmtPct, fmtSimTime } from "@/lib/utils";
 
@@ -39,9 +40,9 @@ function ScenarioCard({ def }: { def: ScenarioDefinition }) {
           ))}
         </ul>
       </details>
-      <div className="mt-auto flex flex-wrap items-end gap-2 pt-3">
+      <div className="mt-auto flex flex-col gap-2 pt-3">
         {def.targetable ? (
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <Label htmlFor={`t-${def.id}`}>Partner</Label>
             <Select id={`t-${def.id}`} value={target} onChange={(e) => setTarget(e.target.value as PartnerId)} className="h-8 w-full min-w-0 text-xs">
               {PARTNER_IDS.map((p) => (
@@ -52,7 +53,7 @@ function ScenarioCard({ def }: { def: ScenarioDefinition }) {
             </Select>
           </div>
         ) : null}
-        <Button size="sm" variant={def.kind === "recovery" ? "success" : "primary"} onClick={trigger} disabled={running} data-testid={`start-${def.id}`}>
+        <Button size="sm" variant={def.kind === "recovery" ? "success" : "primary"} onClick={trigger} disabled={running} data-testid={`start-${def.id}`} className="w-full">
           {running ? (
             <>
               <Check className="h-3.5 w-3.5" /> Running
@@ -231,13 +232,13 @@ function GoldenLoader() {
   };
   return (
     <Card>
-      <CardHeader title="Test scenarios (golden dataset)" subtitle="Ready-made incidents. Loading one resets the simulator and triggers it automatically." />
+      <CardHeader title="Test scenarios (golden dataset)" subtitle="Two ready-made incidents. Loading one resets the simulator and kicks it off for you." />
       <div className="space-y-2 p-4 text-xs">
         <div className="flex gap-2">
           <Select value={id} onChange={(e) => setId(e.target.value)} className="h-8 min-w-0 flex-1 text-xs" aria-label="Golden scenario">
-            {GOLDEN_SCENARIOS.map((g) => (
+            {FEATURED_GOLDEN.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.id} · {g.title}
+                {g.id} · {g.short}
               </option>
             ))}
           </Select>
@@ -245,7 +246,7 @@ function GoldenLoader() {
             <Upload className="h-3.5 w-3.5" /> {loading ? "Loading…" : "Load"}
           </Button>
         </div>
-        <p className="text-text-2">{gs.description}</p>
+        <p className="text-text-2">{FEATURED_GOLDEN.find((f) => f.id === id)?.blurb}</p>
         <details>
           <summary className="cursor-pointer text-muted">Details</summary>
           <div className="mt-1 space-y-1">
@@ -313,15 +314,15 @@ function SimulatorPageInner() {
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div>
-        <h1 className="text-lg font-semibold text-text">Incident simulator <SimTag /></h1>
-        <p className="text-sm text-text-2">Pick a scenario and press Trigger. Then watch the Overview page. Same seed every time, so results are reproducible.</p>
+        <h1 className="text-xl font-extrabold text-text">🧪 Incident simulator <SimTag /></h1>
+        <p className="text-sm text-text-2">Pick a scenario, press Trigger, then pop over to the Overview to watch it unfold. Break things freely — it&apos;s all simulated, and the same seed gives the same result every time.</p>
       </div>
       <section aria-label="Scenarios" className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {PRIMARY_SCENARIO_IDS.map((id) => (
           <ScenarioCard key={id} def={SCENARIOS[id]} />
         ))}
       </section>
-      <details className="rounded-lg border border-border bg-surface">
+      <details className="rounded-2xl border border-border bg-surface shadow-sm">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">More scenarios (6 edge cases)</summary>
         <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-5">
           {EXTRA_SCENARIO_IDS.map((id) => (
@@ -338,7 +339,7 @@ function SimulatorPageInner() {
           <Protections />
           <Workflow />
           <GoldenLoader />
-          <details className="rounded-lg border border-border bg-surface">
+          <details className="rounded-2xl border border-border bg-surface shadow-sm">
             <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Advanced: AI fault injection</summary>
             <AiFault />
           </details>

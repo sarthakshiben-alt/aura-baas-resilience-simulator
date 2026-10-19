@@ -25,7 +25,7 @@ export function ActionApproval({ inc }: { inc: Incident }) {
           const check = inc.postActionChecks.find((c) => c.recommendationId === r.id);
           const countdown = r.scheduledExecutionAt !== null && r.executedAt === null ? r.scheduledExecutionAt - sim.state.tick : null;
           return (
-            <div key={r.id} className="rounded-md border border-border p-3" data-testid="recommendation" data-action={r.actionId}>
+            <div key={r.id} className="rounded-xl border border-border p-3" data-testid="recommendation" data-action={r.actionId}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold text-text">{def?.label ?? `Unknown action "${r.actionId}"`}</span>
                 {r.targetEntityId ? <Chip tone="neutral">{ENTITY_PROFILES[r.targetEntityId].name}</Chip> : null}

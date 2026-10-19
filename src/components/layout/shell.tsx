@@ -23,7 +23,7 @@ const NAV = [
 export function SimulatedBanner() {
   return (
     <div role="note" className="bg-sim-banner px-4 py-1 text-center text-[11px] font-bold tracking-[0.12em] text-sim-banner-text">
-      SIMULATED ENVIRONMENT — NO REAL BANKING SYSTEM CONNECTED
+      🧪 SIMULATED ENVIRONMENT — NO REAL BANKING SYSTEM CONNECTED
     </div>
   );
 }
@@ -33,7 +33,7 @@ function AiToggle() {
   const on = sim.aiMode === "ai_on";
   const live = sim.aiStatus?.configured;
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-2.5 py-1.5" data-testid="ai-toggle">
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-1.5" data-testid="ai-toggle">
       <span className="text-[11px] font-bold tracking-wide text-text">AI ASSISTANCE</span>
       <Switch checked={on} onCheckedChange={(v) => sim.setAiMode(v ? "ai_on" : "ai_off")} label="AI assistance on or off" />
       <span className={cn("w-7 text-xs font-bold", on ? "text-info-text" : "text-muted")}>{on ? "ON" : "OFF"}</span>
@@ -62,7 +62,7 @@ function AiToggle() {
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
       <SimulatedBanner />
       <ClientOnly fallback={<div className="h-12" />}>
         <TopControls />
@@ -76,7 +76,7 @@ function TopControls() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-        <div className="flex items-center gap-2 rounded-md bg-surface-2 px-2.5 py-1.5 text-xs" aria-live="off">
+        <div className="flex items-center gap-2 rounded-xl bg-surface-2 px-2.5 py-1.5 text-xs" aria-live="off">
           <span className="text-muted">Sim clock</span>
           <span className="tabular font-semibold text-text" data-testid="sim-clock">{fmtSimTime(sim.state.tick)}</span>
         </div>
@@ -114,7 +114,7 @@ function Notices() {
   return (
     <div className="fixed bottom-4 left-1/2 z-50 flex w-[min(560px,92vw)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
       {sim.notices.map((n) => (
-        <div key={n.id} className={cn("rounded-md border px-3 py-2 text-sm shadow-lg", n.kind === "error" ? "border-critical/40 bg-surface text-critical-text" : n.kind === "warn" ? "border-warning/50 bg-surface text-warning-text" : n.kind === "success" ? "border-good/50 bg-surface text-good-text" : "border-border bg-surface text-text")}>
+        <div key={n.id} className={cn("rounded-2xl border px-4 py-2.5 text-sm font-semibold shadow-xl", n.kind === "error" ? "border-critical/40 bg-[#fff1f3] text-critical-text" : n.kind === "warn" ? "border-warning/50 bg-[#fff8e6] text-warning-text" : n.kind === "success" ? "border-good/40 bg-[#ebfaf3] text-good-text" : "border-border bg-surface text-text")}>
           {n.text}
         </div>
       ))}
@@ -126,32 +126,37 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen self-start w-60 shrink-0 flex-col bg-nav text-nav-text md:flex">
+      <aside className="sticky top-0 hidden h-screen self-start w-60 shrink-0 flex-col border-r border-border bg-nav text-nav-text md:flex">
         <div className="px-4 pb-4 pt-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">Aura Bank</div>
-          <div className="mt-0.5 text-sm font-semibold text-white">BaaS Resilience Simulator</div>
-          <div className="mt-2 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/70">Synthetic data</div>
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="grid h-9 w-9 place-items-center rounded-2xl bg-accent-soft text-lg">🏦</span>
+            <div>
+              <div className="text-sm font-extrabold text-text">Aura Bank</div>
+              <div className="text-[11px] font-semibold text-muted">Resilience Simulator</div>
+            </div>
+          </div>
+          <div className="mt-3 inline-block rounded-full bg-sim-banner px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sim-banner-text">Synthetic data</div>
         </div>
         <nav aria-label="Primary" className="flex flex-col gap-0.5 px-2">
           {NAV.map((n) => {
             const active = n.href === "/" ? path === "/" : path.startsWith(n.href.split("#")[0]) && !n.href.includes("#");
             return (
-              <Link key={n.href} href={n.href} className={cn("flex items-center gap-2 rounded-md px-2.5 py-2 text-[13px] hover:bg-white/5", active && "bg-white/10 font-semibold text-white")}>
+              <Link key={n.href} href={n.href} className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold hover:bg-surface-2", active && "bg-accent-soft text-nav-active")}>
                 <n.icon aria-hidden className="h-4 w-4" />
                 {n.label}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto p-4 text-[11px] leading-relaxed text-white/45">
-          Product-management case study prototype. All telemetry, incidents and financial figures are simulated or illustrative.
+        <div className="mt-auto m-3 rounded-2xl bg-surface-2 p-3 text-[11px] leading-relaxed text-muted">
+          A product-management case study. Every number here is simulated — no real banks were harmed. 🙂
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <nav aria-label="Primary mobile" className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-2 py-1.5 md:hidden">
           {NAV.filter((n) => !n.href.includes("#")).map((n) => (
-            <Link key={n.href} href={n.href} className={cn("whitespace-nowrap rounded px-2 py-1 text-xs", path === n.href ? "bg-surface-2 font-semibold" : "text-text-2")}>
+            <Link key={n.href} href={n.href} className={cn("whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold", path === n.href ? "bg-accent-soft text-nav-active" : "text-text-2")}>
               {n.label}
             </Link>
           ))}

@@ -74,6 +74,8 @@ export class SimController {
   /** Guided demo step (null = free exploration). */
   guideStep: number | null = null;
   paired: { loading: boolean; error: string | null; result: (PairedRunResult & { id: string }) | null } = { loading: false, error: null, result: null };
+  /** Latest paired result per golden scenario, so switching scenarios doesn't re-run (and re-bill) the AI. */
+  pairedByGolden: Record<string, PairedRunResult & { id: string }> = {};
   benchmark: { loading: boolean; error: string | null; result: (BenchmarkResult & { id: string }) | null } = { loading: false, error: null, result: null };
   version = 0;
 
@@ -183,9 +185,9 @@ export class SimController {
     this.save();
     if (gs) {
       const at = gs.trigger.script[0]?.at ?? 0;
-      this.notify("success", `Loaded ${gs.id} — ${gs.title}. Reset to its starting conditions; the incident triggers automatically at ${fmtSimTime(at)} (sim clock).`);
+      this.notify("success", `📦 Loaded ${gs.id} — ${gs.title}. Reset to its starting conditions; the incident triggers automatically at ${fmtSimTime(at)} (sim clock).`);
     } else if (opts.announce !== false) {
-      this.notify("success", "Scenario reset: all services back to a healthy baseline.");
+      this.notify("success", "🧹 Fresh start — all services back to healthy.");
     }
     this.emit();
   }
@@ -353,19 +355,19 @@ export class SimController {
       this.notify(
         "success",
         def?.kind === "recovery"
-          ? `Recovery triggered${who ? ` for ${who}` : ""}: its downstream returns to normal over ~15 s.`
-          : `Triggered: ${def?.label ?? scenarioId}${who ? ` on ${who}` : ""}. Watch the Overview — monitoring should detect it within seconds.`,
+          ? `🩹 Recovery triggered${who ? ` for ${who}` : ""}: its downstream returns to normal over ~15 s.`
+          : `🚀 Triggered: ${def?.label ?? scenarioId}${who ? ` on ${who}` : ""}. Watch the Overview — monitoring should detect it within seconds.`,
       );
     }
   }
   stopRun(runId: string) {
     const run = this.state.scenarioRuns.find((r) => r.id === runId);
     this.addCommand({ k: "stop", at: this.state.tick, runId });
-    if (run?.stoppedAt !== null) this.notify("success", `Stopped: ${run?.label ?? runId}. Metrics ramp back to baseline.`);
+    if (run?.stoppedAt !== null) this.notify("success", `✋ Stopped: ${run?.label ?? runId}. Metrics ramp back to baseline.`);
   }
   setControls(patch: ControlsPatch) {
     this.addCommand({ k: "controls", at: this.state.tick, patch });
-    this.notify("success", "Gateway protection settings updated.");
+    this.notify("success", "🛡️ Protection settings updated.");
   }
   /** True while a run of this scenario on this target is still perturbing the system. */
   isScenarioActive(scenarioId: string, target: string | null): boolean {
@@ -434,7 +436,9 @@ export class SimController {
     this.paired = { ...this.paired, loading: true, error: null };
     this.emit();
     try {
-      this.paired = { loading: false, error: null, result: await api.paired(session, body) };
+      const result = await api.paired(session, body);
+      this.paired = { loading: false, error: null, result };
+      if (typeof body.goldenId === "string") this.pairedByGolden = { ...this.pairedByGolden, [body.goldenId]: result };
     } catch (e) {
       this.paired = { ...this.paired, loading: false, error: e instanceof ApiError ? e.message : "Comparison failed" };
     }

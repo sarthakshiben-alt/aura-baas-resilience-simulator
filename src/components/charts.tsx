@@ -28,7 +28,7 @@ type Row = Record<string, number | null>;
 function TooltipBox({ active, payload, label, unit, series }: { active?: boolean; payload?: { dataKey: string; value: number | null }[]; label?: number; unit: string; series: SeriesDef[] }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-border bg-surface px-2.5 py-2 text-xs shadow-lg">
+    <div className="rounded-xl border border-border bg-surface px-2.5 py-2 text-xs shadow-lg">
       <div className="mb-1 text-muted">t = {fmtSimTime(label ?? 0)} (sim)</div>
       {series.map((s) => {
         const p = payload.find((x) => x.dataKey === s.key);

@@ -7,10 +7,9 @@ import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select } from "@/components/ui/primitives";
 import { LabeledBarChart } from "@/components/charts";
 import { Chip, SimTag, SourceBadge } from "@/components/status";
-import { GOLDEN_SCENARIOS } from "@/lib/golden/dataset";
-import { SCENARIOS } from "@/lib/sim/scenarios";
+import { FEATURED_GOLDEN, type FeaturedGoldenId } from "@/lib/golden/featured";
 import { diff, ratio, type RunMetrics } from "@/lib/comparison/metrics";
-import type { SensitivityRow } from "@/lib/comparison/paired";
+import type { PairedRunResult, SensitivityRow } from "@/lib/comparison/paired";
 import { CASE_COST_PER_DOWNTIME_MINUTE_USD, computeBusinessValue } from "@/lib/comparison/business";
 import type { BenchmarkAggregate } from "@/lib/comparison/benchmark";
 import type { DiagnosisSource } from "@/lib/sim/types";
@@ -95,7 +94,7 @@ function MetricsTable({ off, rules, on }: { off: RunMetrics; rules: RunMetrics; 
 function Sensitivity({ rows, chosen }: { rows: SensitivityRow[]; chosen: number }) {
   const breakEven = rows.find((r) => (r.aiRecoveryAdvantageS ?? -1) > 0);
   return (
-    <div className="rounded-md border border-border p-3">
+    <div className="rounded-xl border border-border p-3">
       <div className="text-xs font-semibold text-text">How much of the AI advantage is the triage assumption?</div>
       <p className="mt-0.5 text-[11px] text-muted">Same scenario; only the assumed manual-triage time changes. AI-assisted result is fixed. Positive = AI recovered sooner / less downtime than the manual runbook.</p>
       <table className="tabular mt-2 w-full text-xs" data-testid="sensitivity-table">
@@ -143,16 +142,9 @@ function Paired() {
         <div className="flex flex-col gap-1">
           <Label htmlFor="pair-scn">Scenario</Label>
           <Select id="pair-scn" value={scenario} onChange={(e) => setScenario(e.target.value)} className="text-xs">
-            <optgroup label="Golden dataset">
-              {GOLDEN_SCENARIOS.map((g) => (
-                <option key={g.id} value={g.id}>{g.id} · {g.title}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Simulator scenarios">
-              {["partner_slowdown", "traffic_spike", "resource_saturation", "retail_risk"].map((id) => (
-                <option key={id} value={id}>{SCENARIOS[id].code} · {SCENARIOS[id].label}</option>
-              ))}
-            </optgroup>
+            {FEATURED_GOLDEN.map((g) => (
+              <option key={g.id} value={g.id}>{g.id} · {g.short}</option>
+            ))}
           </Select>
         </div>
         <div className="flex flex-col gap-1">
@@ -190,7 +182,7 @@ function Paired() {
           <Sensitivity rows={r.sensitivity} chosen={r.config.manualTriageSeconds} />
           <div className="grid gap-3 text-xs md:grid-cols-3">
             {(["off", "rules", "on"] as const).map((m) => (
-              <div key={m} className="rounded-md border border-border p-3">
+              <div key={m} className="rounded-xl border border-border p-3">
                 <div className="font-semibold text-text">{m === "off" ? "Manual runbook" : m === "rules" ? "Automated rules" : "AI-assisted"} — top cause: {r[m].topCause?.replace(/_/g, " ") ?? "N/A"}</div>
                 <div className="mt-1 text-text-2">{r[m].diagnosisSummary ?? "No diagnosis"}</div>
                 <div className="mt-1 text-muted">Approved by simulated operator: {r[m].approvedActions.join(", ") || "none"}{r[m].rejectedByPolicy.length ? ` · not approvable: ${r[m].rejectedByPolicy.join(", ")}` : ""}</div>
@@ -220,7 +212,7 @@ function BusinessValue({ cost }: { cost: number }) {
           <p className="text-muted">Using ${cost.toLocaleString("en-US")} per partner downtime minute (set in the SLA section above).</p>
           <div className="flex flex-col gap-1">
             <Label htmlFor="price">AI price per million tokens (USD, optional)</Label>
-            <input id="price" type="number" min={0} step={0.01} value={price} placeholder="not set → AI cost N/A" onChange={(e) => setPrice(e.target.value)} className="h-9 rounded-md border border-border bg-surface px-2 text-sm" />
+            <input id="price" type="number" min={0} step={0.01} value={price} placeholder="not set → AI cost N/A" onChange={(e) => setPrice(e.target.value)} className="h-9 rounded-xl border border-border bg-surface px-2 text-sm" />
           </div>
           <table className="tabular w-full">
             <tbody>
@@ -264,32 +256,45 @@ function BusinessValue({ cost }: { cost: number }) {
 const usd0 = (v: number) => `${v < 0 ? "−" : ""}$${Math.round(Math.abs(v)).toLocaleString("en-US")}`;
 const min1 = (s: number) => `${(Math.round((s / 60) * 10) / 10).toLocaleString("en-US")} min`;
 
-function SlaPenalty({ cost, setCost }: { cost: number; setCost: (v: number) => void }) {
+function SlaPenalty({ cost, setCost, scenario, setScenario }: { cost: number; setCost: (v: number) => void; scenario: FeaturedGoldenId; setScenario: (v: FeaturedGoldenId) => void }) {
   const sim = useSim();
-  const r = sim.paired.result;
+  const r = sim.pairedByGolden[scenario] ?? null;
   return (
     <Card data-testid="sla-penalty">
-      <CardHeader title="What does downtime cost? (SLA penalty)" subtitle="Same incident, handled three ways. Every minute a partner is down costs the bank money." right={<SimTag>Illustrative</SimTag>} />
-      <div className="space-y-4 p-4">
-        <div className="flex flex-wrap items-end gap-3 text-xs">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="sla-cost">SLA penalty per minute of partner downtime (USD)</Label>
-            <input id="sla-cost" type="number" min={0} step={100} value={cost} onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))} className="h-9 w-40 rounded-md border border-border bg-surface px-2 text-sm" />
+      <CardHeader title="💸 What does downtime cost? (SLA penalty)" subtitle="Same incident, handled three ways. Every minute a partner is down costs the bank money." right={<SimTag>Illustrative</SimTag>} />
+      <div className="space-y-4 p-5 pt-2">
+        <div className="flex flex-wrap items-end justify-between gap-3 text-xs">
+          <div role="radiogroup" aria-label="Incident" className="inline-flex rounded-full bg-surface-2 p-1">
+            {FEATURED_GOLDEN.map((g) => (
+              <button
+                key={g.id}
+                role="radio"
+                aria-checked={scenario === g.id}
+                onClick={() => setScenario(g.id)}
+                data-testid={`sla-pick-${g.id}`}
+                className={cn("cursor-pointer rounded-full px-4 py-1.5 text-xs font-bold transition-colors", scenario === g.id ? "bg-surface text-nav-active shadow-sm" : "text-muted hover:text-text")}
+              >
+                {g.short} <span className="font-semibold opacity-70">· {g.id}</span>
+              </button>
+            ))}
           </div>
-          <p className="max-w-xl text-muted">Default ${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</p>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="sla-cost">Penalty per minute (USD)</Label>
+            <input id="sla-cost" type="number" min={0} step={100} value={cost} onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))} className="h-9 w-28 rounded-xl border border-border bg-surface px-2.5 text-sm" />
+          </div>
         </div>
+        <p className="text-xs text-text-2">{FEATURED_GOLDEN.find((g) => g.id === scenario)?.blurb} <span className="text-muted">${CASE_COST_PER_DOWNTIME_MINUTE_USD.toLocaleString("en-US")}/min is the case-study average — an assumption, not verified data.</span></p>
         {!r ? (
-          <Empty>{sim.paired.loading ? "Running the same incident three ways (manual, automated rules, AI)… this takes a few seconds." : sim.paired.error ? `Comparison failed: ${sim.paired.error}` : "Waiting for the comparison to run…"}</Empty>
+          <Empty>{sim.paired.loading ? "⏳ Running the same incident three ways (manual, automated rules, AI)… a few seconds." : sim.paired.error ? `Comparison failed: ${sim.paired.error}` : "Getting ready…"}</Empty>
         ) : (
-          <SlaBody cost={cost} />
+          <SlaBody cost={cost} r={r} scenario={scenario} />
         )}
       </div>
     </Card>
   );
 }
 
-function SlaBody({ cost }: { cost: number }) {
-  const r = useSim().paired.result!;
+function SlaBody({ cost, r, scenario }: { cost: number; r: PairedRunResult; scenario: FeaturedGoldenId }) {
   const arms = [
     { key: "off", label: `Manual runbook (${Math.round(r.config.manualTriageSeconds / 60)} min triage)`, color: "var(--s7)", down: r.off.metrics.primaryDowntimeSeconds },
     { key: "rules", label: "Automated rules (no AI)", color: "var(--s3)", down: r.rules.metrics.primaryDowntimeSeconds },
@@ -343,6 +348,11 @@ function SlaBody({ cost }: { cost: number }) {
         <li>
           <b className="text-text">AI on top of those rules</b> {aiExtra > 0 ? <>saves a further <b className="text-good-text">{min1(aiExtra)} · {usd0(pen(aiExtra))}</b>.</> : aiExtra < 0 ? <>costs an extra <b className="text-critical-text">{min1(-aiExtra)} · {usd0(pen(-aiExtra))}</b>.</> : <>saves <b className="text-text">nothing extra</b> in this incident — the rules were already as fast.</>}
         </li>
+        {scenario === "GS-18" && aiExtra <= 0 ? (
+          <li>
+            🕵️ <b className="text-text">Plot twist:</b> this is the &quot;tricky&quot; one, yet the rules still kept up — they ran the moment the slowdown was detected, before the traffic growth muddied the picture. AI&apos;s edge on this incident only shows when both look at later evidence (see the accuracy benchmark below), and that doesn&apos;t change the downtime bill here.
+          </li>
+        ) : null}
         <li className="text-xs text-muted">
           Not counted above: the gateway protections (on in all three) also kept retail banking within its target for {Math.max(0, cf.retailBreachSeconds - pb.retailBreachSeconds)} s more and kept the other partners healthy for {Math.max(0, cf.otherPartnerImpairedSeconds - pb.otherPartnerImpairedSeconds)} partner-seconds more than with no protections.
         </li>
@@ -466,38 +476,40 @@ function Interactive() {
 function ComparisonPageInner() {
   const sim = useSim();
   const [cost, setCost] = useState(CASE_COST_PER_DOWNTIME_MINUTE_USD);
+  const [slaScenario, setSlaScenario] = useState<FeaturedGoldenId>("GS-01");
   const { ready, paired, manualTriageMinutes } = sim;
+  const cached = !!sim.pairedByGolden[slaScenario];
   useEffect(() => {
-    if (ready && !paired.result && !paired.loading && !paired.error) void sim.runPaired({ goldenId: "GS-01", operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes });
-  }, [sim, ready, paired.result, paired.loading, paired.error, manualTriageMinutes]);
+    if (ready && !cached && !paired.loading && !paired.error) void sim.runPaired({ goldenId: slaScenario, operatorDelaySeconds: 20, latencyTimeScale: 1, manualTriageMinutes });
+  }, [sim, ready, cached, slaScenario, paired.loading, paired.error, manualTriageMinutes]);
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <h1 className="text-lg font-semibold text-text">Does AI actually help? <SimTag /></h1>
+          <h1 className="text-xl font-extrabold text-text">Does AI actually help? 🤔 <SimTag /></h1>
           <p className="mt-1 text-sm text-text-2">
             The same incident is handled three ways: a <b>human following a runbook</b>, <b>automated rules</b> (no AI), and <b>AI-assisted</b>. The gateway protections work the same in all three, so the difference is only in how fast the problem gets diagnosed and fixed.
           </p>
         </div>
-        <div className="rounded-md border border-border bg-surface px-3 py-2 text-xs">
+        <div className="rounded-xl border border-border bg-surface px-3 py-2 text-xs">
           Live AI: {sim.aiStatus?.configured ? <b className="text-info-text">{sim.aiStatus.provider} / {sim.aiStatus.model}</b> : <b className="text-warning-text">not configured (AI ON → labelled fallback)</b>}
         </div>
       </div>
-      <SlaPenalty cost={cost} setCost={setCost} />
-      <details className="rounded-lg border border-border bg-surface" data-testid="comparison-details">
+      <SlaPenalty cost={cost} setCost={setCost} scenario={slaScenario} setScenario={setSlaScenario} />
+      <details className="rounded-2xl border border-border bg-surface shadow-sm" data-testid="comparison-details">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Detailed results — change the scenario, every metric, sensitivity to the triage assumption, business attribution</summary>
         <div className="space-y-4 p-3">
           <Paired />
           <BusinessValue cost={cost} />
         </div>
       </details>
-      <details className="rounded-lg border border-border bg-surface">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Diagnosis accuracy benchmark (all 18 test scenarios)</summary>
+      <details className="rounded-2xl border border-border bg-surface shadow-sm">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Diagnosis accuracy benchmark (runs all 18 test scenarios behind the scenes)</summary>
         <div className="p-3">
           <Benchmark />
         </div>
       </details>
-      <details className="rounded-lg border border-border bg-surface">
+      <details className="rounded-2xl border border-border bg-surface shadow-sm">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Your own runs</summary>
         <div className="p-3">
           <Interactive />

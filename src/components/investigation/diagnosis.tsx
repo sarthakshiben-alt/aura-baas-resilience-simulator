@@ -72,7 +72,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
       />
       <div className="space-y-3 p-4">
         {pending ? (
-          <div className="flex items-center gap-2 rounded-md border border-info/40 bg-info/5 px-3 py-2 text-xs text-info-text" data-testid="investigation-pending">
+          <div className="flex items-center gap-2 rounded-xl border border-info/40 bg-info/5 px-3 py-2 text-xs text-info-text" data-testid="investigation-pending">
             <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
             {pending.triageSeconds > 0 ? (
               <span>
@@ -87,7 +87,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
           </div>
         ) : null}
         {err ? (
-          <div className="rounded-md border border-critical/40 bg-critical/5 px-3 py-2 text-xs text-critical-text">
+          <div className="rounded-xl border border-critical/40 bg-critical/5 px-3 py-2 text-xs text-critical-text">
             Request failed: {err}{" "}
             <Button size="sm" variant="secondary" onClick={() => void sim.investigate(inc.id)}>
               Retry
@@ -99,7 +99,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
           <div className="space-y-3" data-testid="diagnosis">
             <InvestigationMeta iv={iv} />
             {iv.errorCategory ? (
-              <div className="rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning-text">
+              <div className="rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning-text">
                 LLM attempt failed — <b>{iv.errorCategory.replace(/_/g, " ")}</b>
                 {iv.faultInjected ? " (injected fault)" : ""}: {iv.llmError}. The diagnosis below is the deterministic <b>rule-based fallback</b>, not an AI response.{" "}
                 {sim.aiMode === "ai_on" && !resolved ? (
@@ -119,7 +119,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">Likely causes & alternative explanations</div>
               <div className="mt-1 space-y-2">
                 {iv.diagnosis.likelyCauses.map((c, i) => (
-                  <div key={i} className="rounded-md border border-border p-2.5">
+                  <div key={i} className="rounded-xl border border-border p-2.5">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-text">{c.cause}</span>
                       <Chip tone="neutral">{c.category.replace(/_/g, " ")}</Chip>

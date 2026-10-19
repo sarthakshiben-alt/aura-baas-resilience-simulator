@@ -32,9 +32,9 @@ export function AssistantPanel({ incidentId }: { incidentId: string | null }) {
         <div className="max-h-[420px] space-y-2 overflow-y-auto" aria-live="polite">
           {thread.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="ml-auto max-w-[85%] rounded-md bg-accent/10 px-3 py-2 text-sm text-text">{m.text}</div>
+              <div key={i} className="ml-auto max-w-[85%] rounded-xl bg-accent/10 px-3 py-2 text-sm text-text">{m.text}</div>
             ) : (
-              <div key={i} className="max-w-[95%] rounded-md border border-border px-3 py-2 text-sm text-text-2">
+              <div key={i} className="max-w-[95%] rounded-xl border border-border px-3 py-2 text-sm text-text-2">
                 {m.pending ? (
                   <span className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Thinking…</span>
                 ) : (
@@ -67,7 +67,7 @@ export function AssistantPanel({ incidentId }: { incidentId: string | null }) {
             ask(q);
           }}
         >
-          <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder="Ask about the current incident…" aria-label="Ask the incident assistant" className="h-9 flex-1 rounded-md border border-border bg-surface px-3 text-sm text-text" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder="Ask about the current incident…" aria-label="Ask the incident assistant" className="h-9 flex-1 rounded-xl border border-border bg-surface px-3 text-sm text-text" />
           <Button type="submit" variant="primary" disabled={busy || q.trim().length < 2}>
             <Send className="h-3.5 w-3.5" /> Ask
           </Button>

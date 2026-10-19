@@ -33,7 +33,7 @@ export function IncidentTimeline({ state, inc, compact = false }: { state: SimSt
     <div>
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8" aria-label="Incident milestones">
         {milestones.map(([label, t]) => (
-          <li key={label} className={cn("rounded-md border px-2 py-1.5", t !== null ? "border-good/40 bg-good/5" : "border-border")}>
+          <li key={label} className={cn("rounded-xl border px-2 py-1.5", t !== null ? "border-good/40 bg-good/5" : "border-border")}>
             <div className="flex items-center gap-1 text-[11px] font-medium text-text-2">
               {t !== null ? <CircleCheck aria-hidden className="h-3 w-3 text-good-text" /> : <CircleDashed aria-hidden className="h-3 w-3 text-muted" />}
               {label}

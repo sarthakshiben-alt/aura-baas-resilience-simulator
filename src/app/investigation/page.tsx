@@ -155,7 +155,7 @@ function InvestigationPageInner() {
     <div className="mx-auto max-w-[1400px] space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold text-text">Incident investigation <SimTag /></h1>
+          <h1 className="text-xl font-extrabold text-text">🔍 Incident investigation <SimTag /></h1>
           <p className="text-sm text-text-2">AI (or the runbook) explains what went wrong and suggests a fix → safety rules check it → you approve or reject.</p>
         </div>
         {s.incidents.length > 1 ? (
@@ -196,7 +196,7 @@ function InvestigationPageInner() {
             <CardHeader title="Incident timeline" subtitle="Simulated times (mm:ss)" />
             <div className="p-4"><IncidentTimeline state={s} inc={inc} /></div>
           </Card>
-          <details className="rounded-lg border border-border bg-surface">
+          <details className="rounded-2xl border border-border bg-surface shadow-sm">
             <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Show audit log (every decision, who made it, what changed)</summary>
             <Audit inc={inc} />
           </details>

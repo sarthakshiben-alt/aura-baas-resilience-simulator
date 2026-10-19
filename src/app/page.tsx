@@ -10,6 +10,8 @@ import { IncidentTimeline } from "@/components/dashboard/timeline";
 import { TimeSeriesChart, focusRows, focusSeries } from "@/components/charts";
 import { ProtectionBadge, RetailBadge, SeverityBadge, SimTag } from "@/components/status";
 import { fmtMs, fmtPct } from "@/lib/utils";
+import { PARTNER_IDS } from "@/lib/sim/types";
+import { ENTITY_PROFILES } from "@/lib/sim/config";
 
 function OverviewPageInner() {
   const sim = useSim();
@@ -19,15 +21,25 @@ function OverviewPageInner() {
   const shown = open.at(-1) ?? s.incidents.at(-1) ?? null;
   const healthy = g ? 5 - g.degradedPartners : 5;
   const series = focusSeries(s);
+  const hurting = PARTNER_IDS.filter((id) => (s.history.entities[id].at(-1)?.status ?? "healthy") !== "healthy").map((id) => ENTITY_PROFILES[id].name);
+  const mood =
+    hurting.length === 0
+      ? { emoji: "☕", text: "All calm — every service is healthy. Trigger an incident to see the protections in action." }
+      : g?.retailHealth === "breach"
+        ? { emoji: "🚨", text: `${hurting.join(", ")} ${hurting.length > 1 ? "are" : "is"} struggling and retail banking is feeling it.` }
+        : { emoji: "🛡️", text: `${hurting.join(", ")} ${hurting.length > 1 ? "are" : "is"} having a rough day — the gateway has it contained, everyone else is fine.` };
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
-      <Card className="p-4">
+      <Card className="p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl">
-            <h1 className="text-lg font-semibold text-text">Aura Bank gateway — is everything OK?</h1>
+            <h1 className="text-xl font-extrabold text-text">👋 Aura Bank gateway — is everything OK?</h1>
             <p className="mt-1 text-sm text-text-2">
-              Five fintech partners and Aura&apos;s own retail banking share one gateway. When one partner gets slow, the gateway&apos;s automatic protections stop it from dragging everyone else down. <SimTag>Simulated data</SimTag>
+              Five fintech partners and Aura&apos;s own retail banking share one gateway. When one partner gets slow, automatic protections stop it from dragging everyone else down. <SimTag>Simulated data</SimTag>
+            </p>
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-sm font-semibold text-nav-active" data-testid="mood">
+              <span aria-hidden>{mood.emoji}</span> {mood.text}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -93,7 +105,7 @@ function OverviewPageInner() {
             ) : null
           }
         />
-        <div className="p-4">{shown ? <IncidentTimeline state={s} inc={shown} compact /> : <Empty>No incidents yet. Trigger one from the Incident simulator or start the guided demo.</Empty>}</div>
+        <div className="p-4">{shown ? <IncidentTimeline state={s} inc={shown} compact /> : <Empty>No incidents yet — suspiciously quiet. 🙂 Trigger one from the Incident simulator or start the guided demo.</Empty>}</div>
       </Card>
     </div>
   );

@@ -8,17 +8,17 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full text-sm font-semibold transition-all active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
-        primary: "bg-accent text-accent-fg hover:brightness-110",
-        secondary: "bg-surface-2 text-text border border-border hover:border-border-strong",
+        primary: "bg-accent text-accent-fg shadow-sm shadow-accent/30 hover:brightness-110",
+        secondary: "bg-surface text-text border border-border hover:border-border-strong hover:bg-surface-2",
         ghost: "text-text-2 hover:bg-surface-2",
         danger: "bg-critical text-white hover:brightness-110",
         success: "bg-good-text text-white hover:brightness-110",
       },
-      size: { sm: "h-8 px-2.5 text-xs", md: "h-9 px-3.5", lg: "h-11 px-5 text-base" },
+      size: { sm: "h-8 px-3.5 text-xs", md: "h-9 px-4", lg: "h-11 px-6 text-base" },
     },
     defaultVariants: { variant: "secondary", size: "md" },
   },
@@ -30,14 +30,14 @@ export function Button({ className, variant, size, asChild, ...props }: ButtonHT
 }
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-lg border border-border bg-surface", className)} {...props} />;
+  return <div className={cn("rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgba(30,34,53,0.04),0_6px_20px_-8px_rgba(30,34,53,0.08)]", className)} {...props} />;
 }
 
 export function CardHeader({ title, subtitle, right, className }: { title: ReactNode; subtitle?: ReactNode; right?: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex items-start justify-between gap-3 border-b border-border px-4 py-3", className)}>
+    <div className={cn("flex items-start justify-between gap-3 px-5 pb-2 pt-4", className)}>
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-text">{title}</h2>
+        <h2 className="text-[15px] font-bold text-text">{title}</h2>
         {subtitle ? <p className="mt-0.5 text-xs text-muted">{subtitle}</p> : null}
       </div>
       {right ? <div className="flex shrink-0 items-center gap-2">{right}</div> : null}
@@ -65,7 +65,7 @@ export function Switch({ checked, onCheckedChange, label, id, disabled }: { chec
 }
 
 export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cn("h-9 rounded-md border border-border bg-surface px-2 text-sm text-text", className)} {...props} />;
+  return <select className={cn("h-9 rounded-xl border border-border bg-surface px-2.5 text-sm text-text", className)} {...props} />;
 }
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
@@ -73,14 +73,14 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted">{children}</div>;
+  return <div className="rounded-2xl border border-dashed border-border-strong bg-surface-2/50 p-6 text-center text-sm text-muted">{children}</div>;
 }
 
 export function Kpi({ label, value, sub, status }: { label: string; value: ReactNode; sub?: ReactNode; status?: ReactNode }) {
   return (
-    <Card className="flex flex-col p-3">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</span>
-      <div className="mt-1 text-xl font-semibold text-text">{value}</div>
+    <Card className="flex flex-col p-4">
+      <span className="text-xs font-semibold text-muted">{label}</span>
+      <div className="mt-1 text-2xl font-extrabold text-text">{value}</div>
       {sub ? <div className="mt-0.5 text-xs text-muted">{sub}</div> : null}
       {status ? <div className="mt-1.5">{status}</div> : null}
     </Card>

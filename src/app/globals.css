@@ -1,76 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Chart series and status colours follow the validated dataviz
- * reference palette (categorical slots 1–6; status palette reserved).
+ * Design tokens: a light, friendly palette (soft periwinkle background, white
+ * rounded cards). Chart series stay categorical; status colours stay reserved.
  */
 :root {
   color-scheme: light;
-  --bg: #f6f6f4;
-  --surface: #fcfcfb;
-  --surface-2: #f1f0ec;
-  --border: #e1e0d9;
-  --border-strong: #c3c2b7;
-  --text: #0b0b0b;
-  --text-2: #52514e;
-  --muted: #6f6e69;
-  --accent: #2a78d6;
+  --bg: #f5f7ff;
+  --surface: #ffffff;
+  --surface-2: #f1f3fb;
+  --border: #e4e7f3;
+  --border-strong: #c9cee3;
+  --text: #1e2235;
+  --text-2: #4a5068;
+  --muted: #737a93;
+  --accent: #5b6cf0;
   --accent-fg: #ffffff;
-  --nav: #13171c;
-  --nav-text: #c9ccd1;
-  --nav-active: #ffffff;
-  --sim-banner: #fff4d6;
-  --sim-banner-text: #6b4a00;
-  --good: #0ca30c;
-  --good-text: #006300;
-  --warning: #fab219;
-  --warning-text: #7a5200;
-  --serious: #ec835a;
-  --serious-text: #9a3f17;
-  --critical: #d03b3b;
-  --critical-text: #a32020;
-  --info: #2a78d6;
-  --info-text: #1c5cab;
-  --grid: #e1e0d9;
-  --axis: #898781;
-  --s1: #2a78d6;
-  --s2: #eb6834;
-  --s3: #1baf7a;
-  --s4: #eda100;
-  --s5: #e87ba4;
-  --s6: #008300;
-  --s7: #6250d6;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #232321;
-    --border: #2c2c2a;
-    --border-strong: #383835;
-    --text: #f0efec;
-    --text-2: #c3c2b7;
-    --muted: #9a9890;
-    --accent: #3987e5;
-    --nav: #0a0c0f;
-    --sim-banner: #3a2c05;
-    --sim-banner-text: #f6d27a;
-    --good-text: #0ca30c;
-    --warning-text: #fab219;
-    --serious-text: #ec835a;
-    --critical-text: #e66767;
-    --info-text: #6da7ec;
-    --grid: #2c2c2a;
-    --s1: #3987e5;
-    --s2: #d95926;
-    --s3: #199e70;
-    --s4: #c98500;
-    --s5: #d55181;
-    --s6: #008300;
-    --s7: #9085e9;
-  }
+  --accent-soft: #eef0ff;
+  --nav: #ffffff;
+  --nav-text: #4a5068;
+  --nav-active: #3f4fd6;
+  --sim-banner: #fff6db;
+  --sim-banner-text: #7a5a00;
+  --good: #22b07d;
+  --good-text: #0f7a52;
+  --warning: #f5b83d;
+  --warning-text: #8a5d00;
+  --serious: #f08a5d;
+  --serious-text: #a2461c;
+  --critical: #e5566a;
+  --critical-text: #b02a3e;
+  --info: #5b8def;
+  --info-text: #2f5fc4;
+  --grid: #eceef7;
+  --axis: #9aa0b8;
+  --s1: #5b8def;
+  --s2: #f2785c;
+  --s3: #34c4a0;
+  --s4: #f5b83d;
+  --s5: #e88bc4;
+  --s6: #2fa36b;
+  --s7: #9b8afb;
 }
 
 @theme inline {
@@ -86,6 +56,8 @@
   --color-accent-fg: var(--accent-fg);
   --color-nav: var(--nav);
   --color-nav-text: var(--nav-text);
+  --color-nav-active: var(--nav-active);
+  --color-accent-soft: var(--accent-soft);
   --color-good: var(--good);
   --color-good-text: var(--good-text);
   --color-warning: var(--warning);
@@ -98,7 +70,7 @@
   --color-info-text: var(--info-text);
   --color-sim-banner: var(--sim-banner);
   --color-sim-banner-text: var(--sim-banner-text);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-nunito), ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -110,6 +82,10 @@ body {
 
 body {
   font-family: var(--font-sans);
+}
+
+details > summary {
+  list-style-position: inside;
 }
 
 .tabular {
