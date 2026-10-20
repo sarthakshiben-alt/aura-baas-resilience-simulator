@@ -43,7 +43,7 @@ It is not a chatbot or a static dashboard. User actions change a deterministic s
 
 Screenshots (synthetic data): [investigation](docs/screenshots/investigation.png) · [simulator](docs/screenshots/simulator.png) · [comparison](docs/screenshots/comparison.png).
 
-The **guided demo** (3–5 minutes) walks through one incident: baseline → Partner A slowdown → the deterministic breaker contains it → investigation starts automatically (AI ON) or the on-call engineer is paged and triages for an assumed N minutes (AI OFF) → approve escalation → verified recovery → three-way comparison.
+The **guided demo** (5–7 minutes) asks one question — *when is AI worth paying for?* — in three parts: 🐢 **a routine incident** (Partner A slowdown, run live: protections contain it, you approve the escalation, recovery is verified, and the comparison shows AI adds $0 over automated rules); 🎲 **the mystery incident** (the rulebook is stumped and pages a human; AI escalates the right partner straight away); 💰 **value for money** (both side by side in SLA dollars). If the free AI quota is used up, the value view shows the recorded live runs from 2026-10-19, labelled as recorded. The same side-by-side "Where does AI pay for itself?" card leads the comparison page.
 
 ## Quick start
 

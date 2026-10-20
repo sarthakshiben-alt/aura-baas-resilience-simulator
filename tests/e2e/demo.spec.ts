@@ -34,13 +34,22 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await guide.getByRole("button", { name: /Approve the escalation/ }).click();
     await guide.getByRole("button", { name: /verify recovery/ }).click();
     await guide.getByRole("button", { name: /Fast-forward/ }).click();
-    await guide.getByRole("button", { name: /compare AI ON vs OFF/ }).click({ timeout: 120_000 });
+    await guide.getByRole("button", { name: /what did AI add here/ }).click({ timeout: 120_000 });
     await page.waitForURL(/comparison/);
-    // The comparison page runs GS-01 automatically and leads with the SLA penalty section.
+    // Part 1 verdict: routine incident, the comparison page runs GS-01 by itself.
     await expect(page.getByTestId("sla-table")).toContainText("Automated rules (no AI)", { timeout: 60_000 });
-    await expect(page.getByTestId("sla-penalty")).toContainText("rule-based fallback");
     await expect(page.getByTestId("paired-result")).toContainText("AI ON used fallback");
     await expect(page.getByTestId("sensitivity-table")).toContainText("10 min");
+    await guide.getByRole("button", { name: /mystery incident/ }).click();
+    // Part 2: the mystery — rulebook stumped, human paged.
+    await expect(page.getByTestId("sla-pick-GS-19")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("sla-penalty")).toContainText("human on-call paged", { timeout: 60_000 });
+    await guide.getByRole("button", { name: /value for money/ }).click();
+    // Part 3: no live AI here → recorded live runs, clearly labelled.
+    await expect(page.getByTestId("guide-value")).toContainText("recorded 2026-10-19");
+    await expect(page.getByTestId("ai-value-summary")).toContainText("Recorded live run");
+    await guide.getByRole("button", { name: /Finish/ }).click();
+    await expect(guide).toContainText("AI for the unknown");
     expect(errors).toEqual([]);
   });
 

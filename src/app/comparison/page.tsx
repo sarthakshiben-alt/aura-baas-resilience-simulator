@@ -6,6 +6,7 @@ import { FlaskConical, LoaderCircle, Play } from "lucide-react";
 import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select } from "@/components/ui/primitives";
 import { LabeledBarChart } from "@/components/charts";
+import { AiValueSummary } from "@/components/ai-value";
 import { ENTITY_PROFILES } from "@/lib/sim/config";
 import { Chip, SimTag, SourceBadge } from "@/components/status";
 import { FEATURED_GOLDEN, type FeaturedGoldenId } from "@/lib/golden/featured";
@@ -580,7 +581,8 @@ function Interactive() {
 function ComparisonPageInner() {
   const sim = useSim();
   const [cost, setCost] = useState(CASE_COST_PER_DOWNTIME_MINUTE_USD);
-  const [slaScenario, setSlaScenario] = useState<FeaturedGoldenId>("GS-01");
+  const slaScenario = sim.slaTab;
+  const setSlaScenario = (t: FeaturedGoldenId) => sim.setSlaTab(t);
   const { ready, paired, manualTriageMinutes } = sim;
   const cached = !!sim.pairedByGolden[slaScenario];
   const cooldown = useCooldown();
@@ -603,6 +605,12 @@ function ComparisonPageInner() {
           Live AI: {sim.aiStatus?.configured ? <b className="text-info-text">{sim.aiStatus.provider} / {sim.aiStatus.model}</b> : <b className="text-warning-text">not configured (AI ON → labelled fallback)</b>}
         </div>
       </div>
+      <Card data-testid="where-ai-pays">
+        <CardHeader title="💰 Where does AI pay for itself?" subtitle="Same rulebook, same protections. The only question: does adding AI cut the SLA bill?" />
+        <div className="p-5 pt-2">
+          <AiValueSummary cost={cost} />
+        </div>
+      </Card>
       <SlaPenalty cost={cost} setCost={setCost} scenario={slaScenario} setScenario={setSlaScenario} />
       <details className="rounded-2xl border border-border bg-surface shadow-sm" data-testid="comparison-details">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Detailed results — change the scenario, every metric, sensitivity to the triage assumption, business attribution</summary>

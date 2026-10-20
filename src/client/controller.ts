@@ -74,6 +74,12 @@ export class SimController {
   /** Guided demo step (null = free exploration). */
   guideStep: number | null = null;
   paired: { loading: boolean; error: string | null; result: (PairedRunResult & { id: string }) | null } = { loading: false, error: null, result: null };
+  /** Which incident the comparison page's SLA card shows (driven by the page and the guided demo). */
+  slaTab: "GS-01" | "GS-05" | "GS-19" = "GS-01";
+  setSlaTab(t: "GS-01" | "GS-05" | "GS-19") {
+    this.slaTab = t;
+    this.emit();
+  }
   /** Wall-clock ms until which AI calls are expected to be rate-limited (free-tier provider budget). */
   aiCooldownUntil = 0;
   aiCooldownLeftS() {

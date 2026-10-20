@@ -8,8 +8,13 @@ import { Button } from "@/components/ui/primitives";
 import { HealthBadge, RetailBadge, SourceBadge } from "@/components/status";
 import { PARTNER_IDS } from "@/lib/sim/types";
 import { cn, fmtSecs } from "@/lib/utils";
+import { aiValue } from "@/components/ai-value";
+import { CASE_COST_PER_DOWNTIME_MINUTE_USD } from "@/lib/comparison/business";
 
-const TOTAL = 9;
+const usd = (v: number) => `$${Math.round(Math.max(0, v)).toLocaleString("en-US")}`;
+const mins = (sec: number) => `${(Math.round((sec / 60) * 10) / 10).toLocaleString("en-US")} min`;
+
+const TOTAL = 11;
 
 function Check({ done, children }: { done: boolean; children: React.ReactNode }) {
   return (
@@ -20,7 +25,7 @@ function Check({ done, children }: { done: boolean; children: React.ReactNode })
   );
 }
 
-/** Scripted walkthrough of one complete incident (~3–5 minutes). */
+/** Scripted walkthrough: a routine incident (rules are enough) then a mystery (where AI pays). ~5–7 minutes. */
 export function GuidedDemo() {
   const sim = useSim();
   const router = useRouter();
@@ -45,8 +50,18 @@ export function GuidedDemo() {
       title = "Aura BaaS resilience — guided demo";
       body = (
         <>
-          <p>Aura exposes banking capabilities to five fintech partners through one shared API gateway, which also serves Aura&apos;s retail customers.</p>
-          <p>When one partner&apos;s downstream slows down, requests stay in flight longer and consume shared gateway capacity. This demo shows how deterministic gateway controls contain that, and measures whether AI-assisted investigation adds value on top.</p>
+          <p>Aura exposes banking capabilities to five fintech partners through one shared gateway, which also serves Aura&apos;s retail customers. This demo answers one question: <b>when is AI worth paying for?</b></p>
+          <ol className="list-decimal space-y-1 pl-5 text-xs">
+            <li>
+              🐢 <b>A routine incident</b> — a partner slows down. Automatic protections contain it and the rulebook knows the fix. AI adds nothing.
+            </li>
+            <li>
+              🎲 <b>A mystery incident</b> — weak, mixed signals that no rule fits. The rulebook has to page a human; AI cracks it in seconds.
+            </li>
+            <li>
+              💰 <b>Value for money</b> — both, side by side, in SLA dollars.
+            </li>
+          </ol>
           <p className="font-medium text-warning-text">Everything here is simulated. No real banking system is connected.</p>
         </>
       );
@@ -66,7 +81,7 @@ export function GuidedDemo() {
       );
       break;
     case 1:
-      title = "Act 1 — Baseline";
+      title = "Part 1 🐢 · Routine incident — baseline";
       body = (
         <>
           <p>All five partners and retail banking are healthy. Look at the partner table: P95 ≈ 180 ms, ≈ 10 requests in flight against a limit of 100, gateway utilisation ≈ 45%.</p>
@@ -76,7 +91,7 @@ export function GuidedDemo() {
       actions = <Button variant="primary" onClick={() => go(2)}>Next: trigger an incident</Button>;
       break;
     case 2:
-      title = "Act 2 — Trigger a partner slowdown";
+      title = "Part 1 🐢 · Trigger a partner slowdown";
       body = (
         <>
           <p>We will slow Partner A&apos;s (Wealth Management) simulated downstream ≈45×. Request volume stays the same, so requests simply stay in flight longer.</p>
@@ -98,7 +113,7 @@ export function GuidedDemo() {
       );
       break;
     case 3:
-      title = "Act 2 — Deterministic protections";
+      title = "Part 1 🐢 · Automatic protections";
       body = (
         <>
           <p>No AI is involved here. The gateway&apos;s per-partner concurrency limit, 2 s timeout and circuit breaker act on their own rules.</p>
@@ -127,7 +142,7 @@ export function GuidedDemo() {
       );
       break;
     case 4: {
-      title = "Act 3 — Investigate";
+      title = "Part 1 🐢 · Investigate";
       const triage = sim.manualTriageMinutes;
       body = (
         <>
@@ -173,7 +188,7 @@ export function GuidedDemo() {
       break;
     }
     case 5: {
-      title = "Act 4 — Human approval";
+      title = "Part 1 🐢 · Human approval";
       const esc = inc?.recommendations.find((r) => r.actionId === "escalate_to_partner" && r.approval === "pending");
       body = (
         <>
@@ -194,7 +209,7 @@ export function GuidedDemo() {
       break;
     }
     case 6: {
-      title = "Act 5 — Verify recovery";
+      title = "Part 1 🐢 · Verify recovery";
       const remed = s.timeline.some((e) => e.kind === "partner_remediation_completed");
       body = (
         <>
@@ -217,11 +232,12 @@ export function GuidedDemo() {
         <Button
           variant="primary"
           onClick={() => {
+            sim.setSlaTab("GS-01");
             router.push("/comparison");
             go(7);
           }}
         >
-          Next: compare AI ON vs OFF
+          Next: what did AI add here?
         </Button>
       ) : (
         <Button variant="secondary" onClick={() => sim.setSpeed(20)}>
@@ -231,39 +247,143 @@ export function GuidedDemo() {
       break;
     }
     case 7: {
-      title = "Act 6 — Compare operating modes";
-      const r = sim.paired.result;
+      title = "Part 1 🐢 · What did AI add?";
+      const live = sim.pairedByGolden["GS-01"] ?? null;
+      const v = aiValue(live, "GS-01", CASE_COST_PER_DOWNTIME_MINUTE_USD);
       body = (
         <>
-          <p>A paired run replays the same scenario three times from identical initial conditions: a <b>manual runbook</b> (with your assumed {sim.manualTriageMinutes} min triage), an <b>automated rule-based runbook</b> (no AI) and <b>AI-assisted</b> — same protections, same labelled simulated operator.</p>
-          {r ? (
-            <p className="text-xs">
-              Recovery: manual {fmtSecs(r.off.metrics.timeToRecoveryS)}, automated rules {fmtSecs(r.rules.metrics.timeToRecoveryS)}, AI {fmtSecs(r.on.metrics.timeToRecoveryS)}. Compare AI with <b>automated rules</b> to see what AI itself adds; the gap to the manual runbook is mostly the triage assumption. The <b>SLA penalty</b> card on this page turns those minutes into dollars at $4,500/min. {r.on.metrics.diagnosisSource !== "llm" ? "AI used the rule-based fallback in this run, so it does not measure AI value." : ""}
-            </p>
+          <p>The same incident is replayed three ways: a <b>human with a runbook</b> (assumed {sim.manualTriageMinutes} min triage), <b>automated rules</b> (no AI) and <b>rules + AI</b>. Look at the SLA penalty card.</p>
+          {live ? (
+            <ul className="space-y-1 text-xs">
+              <li>
+                📘 Automation vs a human: <b className="text-good-text">{usd(v.automationUsd)}</b> saved
+              </li>
+              <li>
+                🤖 AI on top of the rules: <b>{usd(v.aiExtraUsd)}</b> {live.on.metrics.diagnosisSource !== "llm" ? "(AI unavailable in this run — fell back to rules)" : ""}
+              </li>
+            </ul>
           ) : sim.paired.loading ? (
             <p className="flex items-center gap-2 text-xs text-muted">
               <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Running all three…
             </p>
           ) : null}
+          <p className="text-xs">
+            <b>Lesson 1:</b> when the rulebook already knows the failure, AI can&apos;t beat it — the money comes from <b>automating</b> the response. Paying for AI here is pure cost.
+          </p>
         </>
       );
-      actions = r ? (
-        <Button variant="primary" onClick={() => go(8)}>
-          Finish
+      actions = (
+        <Button
+          variant="primary"
+          disabled={!live}
+          onClick={() => {
+            sim.setSlaTab("GS-19");
+            go(8);
+          }}
+        >
+          Next: a mystery incident 🎲
         </Button>
-      ) : (
-        <Button variant="primary" disabled={sim.paired.loading} onClick={() => void sim.runPaired({ goldenId: "GS-01", manualTriageMinutes: sim.manualTriageMinutes })}>
-          Run paired comparison (GS-01)
+      );
+      break;
+    }
+    case 8: {
+      title = "Part 2 🎲 · The mystery incident";
+      const live = sim.pairedByGolden["GS-19"] ?? null;
+      const llm = live?.on.metrics.diagnosisSource === "llm";
+      body = (
+        <>
+          <p>
+            One partner is quietly failing — a bit slower, a few more errors, a bit more traffic — and <b>every signal sits just under a rulebook threshold</b>. Red herrings elsewhere look suspicious but are harmless. It&apos;s randomised every roll.
+          </p>
+          {live ? (
+            <ul className="space-y-1 text-xs">
+              <Check done>📘 Rulebook: &quot;can&apos;t tell what&apos;s wrong&quot; → pages a human, who needs the assumed {sim.manualTriageMinutes} min → {mins(live.rules.metrics.primarySlaBreachSeconds)} outside SLA</Check>
+              <Check done={llm}>
+                🤖 AI: {llm ? <>{live.on.humanDiagnosedAt === null ? "named the right partner and escalated straight away" : "didn't crack it, a human had to"} → {mins(live.on.metrics.primarySlaBreachSeconds)} outside SLA</> : "unavailable in this run (free AI quota) — the next step uses your recorded live run instead"}
+              </Check>
+            </ul>
+          ) : sim.paired.loading ? (
+            <p className="flex items-center gap-2 text-xs text-muted">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> Running the mystery three ways…
+            </p>
+          ) : (
+            <p className="text-xs text-muted">Starting the comparison… (the free AI tier may ask for a short cool-down)</p>
+          )}
+          <p className="text-xs text-muted">Open &quot;Reveal what really happened&quot; on the card to see the rolled cause and the red herrings.</p>
+        </>
+      );
+      actions = (
+        <Button
+          variant="primary"
+          disabled={!live && !sim.paired.error}
+          onClick={() => {
+            document.querySelector('[data-testid="where-ai-pays"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+            go(9);
+          }}
+        >
+          Next: value for money 💰
+        </Button>
+      );
+      break;
+    }
+    case 9: {
+      title = "Part 3 💰 · Value for money";
+      const r = aiValue(sim.pairedByGolden["GS-01"] ?? null, "GS-01", CASE_COST_PER_DOWNTIME_MINUTE_USD);
+      const m = aiValue(sim.pairedByGolden["GS-19"] ?? null, "GS-19", CASE_COST_PER_DOWNTIME_MINUTE_USD);
+      body = (
+        <>
+          <p>Extra SLA penalty avoided by adding AI to the rulebook (at the assumed $4,500/min):</p>
+          <table className="tabular w-full text-xs" data-testid="guide-value">
+            <tbody>
+              <tr className="border-b border-border">
+                <td className="py-1">🐢 Routine incident</td>
+                <td className="py-1 text-right font-bold">{usd(r.aiExtraUsd)}</td>
+                <td className="py-1 pl-2 text-right text-muted">{r.source === "live" ? "live" : `recorded ${r.date}`}</td>
+              </tr>
+              <tr>
+                <td className="py-1">🎲 Mystery incident</td>
+                <td className="py-1 text-right font-bold text-good-text">{usd(m.aiExtraUsd)}</td>
+                <td className="py-1 pl-2 text-right text-muted">{m.source === "live" ? "live" : `recorded ${m.date}`}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="text-xs">
+            {m.breakEvenPer1kTokensUsd !== null && m.tokens ? (
+              <>
+                The mystery cost {m.tokens.toLocaleString("en-US")} AI tokens. AI would have to cost over <b>{usd(m.breakEvenPer1kTokensUsd)} per 1,000 tokens</b> to stop paying for itself — and this demo runs on a free tier.
+              </>
+            ) : (
+              <>One or two AI calls — a few thousand tokens — bought back about {mins(m.rulesS - m.aiS)} of SLA breach. This demo runs on a free AI tier.</>
+            )}
+          </p>
+          <p className="text-xs">
+            <b>Lesson 2:</b> don&apos;t put AI on everything. Let the rulebook handle what it knows, and send AI the incidents it <b>can&apos;t</b> classify — that&apos;s where it pays.
+          </p>
+        </>
+      );
+      actions = (
+        <Button variant="primary" onClick={() => go(10)}>
+          Finish
         </Button>
       );
       break;
     }
     default:
-      title = "That's the full loop";
+      title = "That's the story";
       body = (
         <>
-          <p>Deterministic controls protected the platform without AI. Faster diagnosis comes mostly from <b>automating</b> the runbook — which a rule engine does without AI. AI is only worth it where the rulebook gets stuck — try the 🎲 <b>Mystery incident</b> on the comparison page, where every signal is just under a rule threshold. Either way it only advises: the policy engine validates and a human approves.</p>
-          <p>Whether AI improves outcomes depends on the scenario. The benchmark on the comparison page tests it on the golden scenarios, including ambiguous and failure cases.</p>
+          <ol className="list-decimal space-y-1 pl-5 text-xs">
+            <li>
+              🛡️ <b>Protections first.</b> The gateway&apos;s automatic controls kept retail and the other partners safe in every case — no AI involved.
+            </li>
+            <li>
+              📘 <b>Automate what you know.</b> Rules that run on detection beat waiting for a human. That&apos;s most of the money on routine incidents.
+            </li>
+            <li>
+              🤖 <b>AI for the unknown.</b> Where no rule fits, AI turns a paged-human wait into a seconds-long diagnosis. A human still approves every action, and the policy engine blocks unsafe ones.
+            </li>
+          </ol>
+          <p className="text-xs text-muted">Caveats live on the page: the $/min and the human&apos;s triage time are assumptions, and the AI sometimes picks the right fix with the wrong label — which is exactly why a human approves.</p>
         </>
       );
       actions = (
@@ -279,7 +399,7 @@ export function GuidedDemo() {
   }
 
   return (
-    <aside aria-label="Guided demo" className="fixed bottom-4 right-4 z-40 w-[min(400px,calc(100vw-2rem))] rounded-lg border border-accent/40 bg-surface shadow-2xl" data-testid="guided-demo">
+    <aside aria-label="Guided demo" className="fixed bottom-4 right-4 z-40 max-h-[80vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-accent/40 bg-surface shadow-2xl" data-testid="guided-demo">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-info-text">
           <Sparkles className="h-3.5 w-3.5" /> Guided demo · step {Math.min(step + 1, TOTAL)} of {TOTAL}
