@@ -3,6 +3,7 @@
 import { useSim } from "@/client/provider";
 import { Chip } from "@/components/status";
 import type { PairedRunResult } from "@/lib/comparison/paired";
+import { aiArmStatus } from "@/lib/comparison/metrics";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,7 +35,8 @@ const mins = (s: number) => `${(Math.round((s / 60) * 10) / 10).toLocaleString("
 
 export function aiValue(live: PairedRunResult | null, id: "GS-01" | "GS-19", costPerMin: number): AiValue {
   const pen = (s: number) => (s / 60) * costPerMin;
-  if (live && live.on.metrics.diagnosisSource === "llm") {
+  const st = live ? aiArmStatus(live.on.metrics) : "none";
+  if (live && (st === "llm" || st === "skipped")) {
     const m = (k: "off" | "rules" | "on") => live[k].metrics.primarySlaBreachSeconds;
     const extra = pen(m("rules") - m("on"));
     const tokens = live.on.metrics.tokens;

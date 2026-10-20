@@ -46,8 +46,8 @@ export const api = {
   },
   reset: (seed?: number) => post<{ session: string; sessionId: string; log: SimLog }>("/api/demo/reset", seed ? { seed } : {}),
   sync: (session: string, log: SimLog) => post<unknown>("/api/demo/state", { session, log, telemetrySince: log.tick }),
-  investigate: (session: string, log: SimLog, incidentId: string, mode: "ai_on" | "ai_off", fault: "timeout" | "malformed" | null, speed: number, triageMinutes: number) =>
-    post<{ signed: SignedEntry; latencyTicks: number; triageTicks: number }>(`/api/incidents/${incidentId}/investigate`, { session, log, mode, fault, speed, triageMinutes }),
+  investigate: (session: string, log: SimLog, incidentId: string, mode: "ai_on" | "ai_off", fault: "timeout" | "malformed" | null, speed: number, triageMinutes: number, routing = false) =>
+    post<{ signed: SignedEntry; latencyTicks: number; triageTicks: number }>(`/api/incidents/${incidentId}/investigate`, { session, log, mode, fault, speed, triageMinutes, routing }),
   decide: (session: string, log: SimLog, incidentId: string, recommendationId: string, decision: "approve" | "reject" | "cancel") =>
     post<{ signed: SignedEntry }>(`/api/incidents/${incidentId}/recommendations/${encodeURIComponent(recommendationId)}/${decision}`, { session, log }),
   ask: (session: string, log: SimLog, incidentId: string | null, question: string, aiEnabled: boolean) =>

@@ -18,6 +18,8 @@ export interface InvestigateOptions {
   maxRetries: number;
   maxOutputTokens?: number;
   fault?: "timeout" | "malformed" | null;
+  /** Smart routing: run the free rulebook first and call the AI only if it can't classify the incident. */
+  routing?: boolean;
   maxConcurrency?: number;
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
@@ -80,6 +82,38 @@ export async function investigateIncident(opts: InvestigateOptions): Promise<Inv
       validationNotes: [],
       diagnosis,
     };
+  }
+
+  if (opts.routing) {
+    const rules = ruleBasedDiagnosis(opts.context);
+    const top = rules.likelyCauses[0];
+    if (top.category !== "insufficient_evidence") {
+      return {
+        mode: "ai_on",
+        source: "rule_based",
+        status: "succeeded",
+        provider: "rules",
+        model: null,
+        latencyMs: Math.round((performance.now() - t0) * 100) / 100,
+        llmLatencyMs: null,
+        startedAtWallMs,
+        completedAtWallMs: Date.now(),
+        firstResponseMs: null,
+        attempts: 0,
+        errorCategory: null,
+        llmError: null,
+        usage: null,
+        fallbackUsed: false,
+        faultInjected: null,
+        validationNotes: [`Smart routing: the rulebook classified this incident (${top.category.replace(/_/g, " ")}), so the AI was not called.`],
+        diagnosis: rules,
+        workflow: "ai_assisted",
+        assumedTriageSeconds: 0,
+        aiRouting: "skipped",
+      };
+    }
+    const invoked = await investigateIncident({ ...opts, routing: false });
+    return { ...invoked, aiRouting: "invoked", validationNotes: ["Smart routing: the rulebook could not classify this incident, so the AI was called.", ...invoked.validationNotes] };
   }
 
   const provider: AIProvider | null = opts.fault ? new FaultInjectingProvider(opts.provider?.model ?? "none", opts.fault) : opts.provider;

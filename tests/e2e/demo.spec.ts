@@ -27,9 +27,11 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await expect(page.getByTestId("row-partner-a")).toContainText(/Protected|Degraded/);
     await guide.getByRole("button", { name: /Next: investigate/ }).click();
     await page.waitForURL(/investigation/);
-    // AI ON auto-investigates on detection; no click needed.
-    await expect(page.getByTestId("diagnosis")).toContainText("Rule-based fallback");
+    // AI ON auto-investigates on detection. Smart routing: the rulebook classifies a textbook slowdown, so no AI call.
+    await expect(page.getByTestId("diagnosis")).toContainText("Rulebook — AI not needed");
     await expect(page.getByTestId("diagnosis")).not.toContainText("Real LLM response");
+    await expect(page.getByTestId("token-footprint")).toContainText("0 tokens");
+    await expect(page.getByTestId("ai-context")).toContainText("partner-a");
     await guide.getByRole("button", { name: /review the recommendation/ }).click();
     await guide.getByRole("button", { name: /Approve the escalation/ }).click();
     await guide.getByRole("button", { name: /verify recovery/ }).click();
@@ -38,8 +40,10 @@ test.describe("Aura BaaS resilience simulator (production build)", () => {
     await page.waitForURL(/comparison/);
     // Part 1 verdict: routine incident, the comparison page runs GS-01 by itself.
     await expect(page.getByTestId("sla-table")).toContainText("Automated rules (no AI)", { timeout: 60_000 });
-    await expect(page.getByTestId("paired-result")).toContainText("AI ON used fallback");
+    await expect(page.getByTestId("paired-result")).toContainText("AI not needed");
     await expect(page.getByTestId("sensitivity-table")).toContainText("10 min");
+    await expect(page.getByTestId("token-efficiency")).toContainText("fewer AI calls");
+    await expect(page.getByTestId("token-ledger")).toContainText("AI calls avoided");
     await guide.getByRole("button", { name: /mystery incident/ }).click();
     // Part 2: the mystery — rulebook stumped, human paged.
     await expect(page.getByTestId("sla-pick-GS-19")).toHaveAttribute("aria-checked", "true");

@@ -50,6 +50,11 @@ export interface BenchmarkResult {
   rows: BenchmarkRow[];
   off: BenchmarkAggregate;
   on: BenchmarkAggregate;
+  /**
+   * Smart routing, derived from the two columns: use the rulebook's answer unless it said
+   * "insufficient evidence", in which case use the AI's. aiCalls = scenarios that would call the AI.
+   */
+  routed: { scenarios: number; aiCalls: number; correctDiagnosisRate: number | null };
   notes: string[];
 }
 
@@ -136,5 +141,8 @@ export async function runBenchmark(investigate: Investigator, scenarios: GoldenS
   ];
   const onAgg = aggregate(rows.map((r) => r.on), true);
   if (onAgg.realLlmResponses === 0) notes.push("No real LLM response was obtained: every AI ON result is a labelled rule-based fallback. AI value is NOT measured by this run.");
-  return { rows, off: aggregate(rows.map((r) => r.off), false), on: onAgg, notes };
+  const stuck = (r: BenchmarkRow) => r.off.topCategory === "insufficient_evidence";
+  const routedCorrect = rows.filter((r) => (stuck(r) ? r.on.score.diagnosisCorrect : r.off.score.diagnosisCorrect)).length;
+  const routed = { scenarios: rows.length, aiCalls: rows.filter(stuck).length, correctDiagnosisRate: rows.length ? routedCorrect / rows.length : null };
+  return { rows, off: aggregate(rows.map((r) => r.off), false), on: onAgg, routed, notes };
 }

@@ -20,6 +20,8 @@ const Body = z.object({
   speed: z.number().min(1).max(60),
   /** AI OFF only: ASSUMED manual triage time in simulated minutes (0 = automated rules). */
   triageMinutes: z.number().min(0).max(30).optional(),
+  /** AI ON only: smart routing — call the AI only when the rulebook can't classify the incident. */
+  routing: z.boolean().optional(),
 });
 
 /**
@@ -39,7 +41,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/incidents/[id]/
     if (inc.status === "resolved") throw new HttpError(409, "incident_resolved", `${id} is already resolved`);
     if (inc.investigations.length >= MAX_INVESTIGATIONS) throw new HttpError(429, "too_many_investigations", "Investigation limit reached for this incident");
     const context = buildIncidentContext(state, id);
-    const outcome = await serverInvestigator()(context, body.mode, body.mode === "ai_on" ? body.fault ?? null : null);
+    const outcome = await serverInvestigator({ routing: body.routing })(context, body.mode, body.mode === "ai_on" ? body.fault ?? null : null);
     const latencyTicks = Math.max(1, Math.ceil((outcome.latencyMs / 1000) * body.speed));
     // Conventional workflow: an on-call engineer is paged and works the runbook. The triage time is a
     // disclosed ASSUMPTION in simulated seconds (not scaled by speed). Gateway protections are unaffected.

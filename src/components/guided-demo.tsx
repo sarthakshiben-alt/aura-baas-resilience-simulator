@@ -9,6 +9,7 @@ import { HealthBadge, RetailBadge, SourceBadge } from "@/components/status";
 import { PARTNER_IDS } from "@/lib/sim/types";
 import { cn, fmtSecs } from "@/lib/utils";
 import { aiValue } from "@/components/ai-value";
+import { aiArmStatus } from "@/lib/comparison/metrics";
 import { CASE_COST_PER_DOWNTIME_MINUTE_USD } from "@/lib/comparison/business";
 
 const usd = (v: number) => `$${Math.round(Math.max(0, v)).toLocaleString("en-US")}`;
@@ -149,7 +150,15 @@ export function GuidedDemo() {
           {sim.aiMode === "ai_on" ? (
             <p>
               AI assistance is <b>ON</b>. When monitoring detected the incident, an investigation started automatically.{" "}
-              {sim.aiStatus?.configured ? `The configured LLM (${sim.aiStatus.model}) receives the actual simulated telemetry.` : "Live AI is not configured here, so the rule-based fallback answers — and is labelled as such."}
+              {sim.aiRouting ? (
+                <>
+                  With <b>smart routing</b>, the free rulebook goes first and the AI is only called if the rulebook is stuck. A textbook slowdown like this one? The rulebook knows it — <b>0 AI tokens spent</b>.
+                </>
+              ) : sim.aiStatus?.configured ? (
+                `The configured LLM (${sim.aiStatus.model}) receives a compact summary of the simulated telemetry.`
+              ) : (
+                "Live AI is not configured here, so the rule-based fallback answers — and is labelled as such."
+              )}
             </p>
           ) : triage > 0 ? (
             <p>
@@ -161,7 +170,7 @@ export function GuidedDemo() {
           <p className="text-xs text-muted">Either way, the circuit breaker and concurrency limits are already protecting the platform — investigation only decides the remediation. The simulation keeps running while it&apos;s in flight.</p>
           {diag ? (
             <div className="flex items-center gap-2 text-xs">
-              Diagnosis returned: <SourceBadge source={diag.source} status={diag.status} />
+              Diagnosis returned: <SourceBadge source={diag.source} status={diag.status} routing={diag.aiRouting} />
             </div>
           ) : pending ? (
             <div className="flex items-center gap-2 text-xs text-muted">
@@ -259,7 +268,8 @@ export function GuidedDemo() {
                 📘 Automation vs a human: <b className="text-good-text">{usd(v.automationUsd)}</b> saved
               </li>
               <li>
-                🤖 AI on top of the rules: <b>{usd(v.aiExtraUsd)}</b> {live.on.metrics.diagnosisSource !== "llm" ? "(AI unavailable in this run — fell back to rules)" : ""}
+                🤖 AI on top of the rules: <b>{usd(v.aiExtraUsd)}</b>{" "}
+                {aiArmStatus(live.on.metrics) === "skipped" ? "— and with smart routing the AI wasn't even called (0 tokens)" : aiArmStatus(live.on.metrics) !== "llm" ? "(AI unavailable in this run — fell back to rules)" : ""}
               </li>
             </ul>
           ) : sim.paired.loading ? (
@@ -289,7 +299,7 @@ export function GuidedDemo() {
     case 8: {
       title = "Part 2 🎲 · The mystery incident";
       const live = sim.pairedByGolden["GS-19"] ?? null;
-      const llm = live?.on.metrics.diagnosisSource === "llm";
+      const llm = !!live && aiArmStatus(live.on.metrics) === "llm";
       body = (
         <>
           <p>
@@ -309,7 +319,7 @@ export function GuidedDemo() {
           ) : (
             <p className="text-xs text-muted">Starting the comparison… (the free AI tier may ask for a short cool-down)</p>
           )}
-          <p className="text-xs text-muted">Open &quot;Reveal what really happened&quot; on the card to see the rolled cause and the red herrings.</p>
+          <p className="text-xs text-muted">Here the rulebook is stuck, so smart routing <b>does</b> call the AI. Open &quot;Reveal what really happened&quot; on the card to see the rolled cause and the red herrings.</p>
         </>
       );
       actions = (

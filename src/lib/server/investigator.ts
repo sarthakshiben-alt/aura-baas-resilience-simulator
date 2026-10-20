@@ -3,8 +3,8 @@ import type { Investigator } from "../comparison/paired";
 import { createProvider, serverEnv } from "./env";
 import { log } from "./logger";
 
-/** Investigator bound to the server's configured provider (or none). */
-export function serverInvestigator(): Investigator {
+/** Investigator bound to the server's configured provider (or none). `routing` = smart AI routing (AI ON only). */
+export function serverInvestigator(opts: { routing?: boolean } = {}): Investigator {
   const env = serverEnv();
   const provider = createProvider(env);
   return (context, mode, fault) =>
@@ -17,6 +17,7 @@ export function serverInvestigator(): Investigator {
       maxConcurrency: env.aiMaxConcurrency,
       maxOutputTokens: env.aiMaxOutputTokens,
       fault,
+      routing: mode === "ai_on" && !!opts.routing,
       log: (event, data) => log("info", event, data),
     });
 }

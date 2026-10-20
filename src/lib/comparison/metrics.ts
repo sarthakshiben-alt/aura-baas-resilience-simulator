@@ -38,6 +38,10 @@ export interface RunMetrics {
   interventionsExecuted: number;
   unnecessaryInterventions: number;
   tokens: number | null;
+  /** Investigations that actually called the AI (incl. failed attempts). */
+  aiCalls: number;
+  /** Investigations where smart routing skipped the AI because the rulebook classified the incident. */
+  aiSkipped: number;
 }
 
 const rel = (v: number | null, start: number) => (v === null ? null : v - start);
@@ -75,6 +79,8 @@ export function incidentMetrics(state: SimState, inc: Incident | null, windowSta
       interventionsExecuted: 0,
       unnecessaryInterventions: 0,
       tokens: null,
+      aiCalls: 0,
+      aiSkipped: 0,
     };
   }
   const first = inc.investigations[0] ?? null;
@@ -113,7 +119,14 @@ export function incidentMetrics(state: SimState, inc: Incident | null, windowSta
     policyRejections: recs.filter((r) => r.validation.status === "rejected").length,
     interventionsExecuted: checks.length,
     unnecessaryInterventions: checks.filter((c) => c.effective === false).length,
-    tokens: tokens.length && tokens.every((x) => x !== null) ? (tokens as number[]).reduce((a, b) => a + b, 0) : null,
+    // Tokens of the investigations that actually called the AI; 0 when AI ON never needed to call it.
+    tokens: (() => {
+      const called = inc.investigations.filter((i) => i.mode === "ai_on" && i.attempts > 0).map((i) => i.usage?.totalTokens ?? null);
+      if (!called.length) return inc.investigations.some((i) => i.aiRouting === "skipped") ? 0 : tokens.length && tokens.every((x) => x !== null) ? (tokens as number[]).reduce((a, b) => a + b, 0) : null;
+      return called.every((x) => x !== null) ? (called as number[]).reduce((a, b) => a + b, 0) : null;
+    })(),
+    aiCalls: inc.investigations.filter((i) => i.mode === "ai_on" && i.attempts > 0).length,
+    aiSkipped: inc.investigations.filter((i) => i.aiRouting === "skipped").length,
   };
 }
 
@@ -134,4 +147,14 @@ export function diff(a: number | null | undefined, b: number | null | undefined)
 
 export function ratio(num: number, den: number): number | null {
   return den === 0 ? null : num / den;
+}
+
+export type AiArmStatus = "llm" | "skipped" | "fallback" | "none";
+
+/** What the AI actually did in a run: answered, was skipped by smart routing, failed over to rules, or never ran. */
+export function aiArmStatus(m: RunMetrics): AiArmStatus {
+  if (m.fallbackUsed) return "fallback";
+  if (m.aiCalls > 0) return "llm";
+  if (m.aiSkipped > 0) return "skipped";
+  return "none";
 }

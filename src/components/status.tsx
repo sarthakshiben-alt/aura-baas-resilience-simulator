@@ -66,7 +66,8 @@ export function ProtectionBadge({ status }: { status: GatewayProtectionStatus })
   );
 }
 
-export function SourceBadge({ source, status }: { source: DiagnosisSource; status?: string }) {
+export function SourceBadge({ source, status, routing }: { source: DiagnosisSource; status?: string; routing?: "skipped" | "invoked" }) {
+  if (routing === "skipped") return <Chip tone="good" icon={Cpu} title="Smart routing: the rulebook classified this incident, so no AI call was made">Rulebook — AI not needed</Chip>;
   if (status === "failed") return <Chip tone="critical" icon={OctagonX}>Investigation failed</Chip>;
   if (source === "llm") return <Chip tone="info" icon={Bot} title="Structured output from the configured LLM, validated against the schema">Real LLM response</Chip>;
   if (source === "rule_based_fallback") return <Chip tone="warning" icon={Cpu} title="The LLM was unavailable or failed; this is the deterministic rule-based assessment">Rule-based fallback</Chip>;

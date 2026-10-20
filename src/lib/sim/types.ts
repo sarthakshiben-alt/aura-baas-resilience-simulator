@@ -370,6 +370,12 @@ export interface InvestigationRecord {
   validationNotes: string[];
   diagnosis: import("../ai/schema").Diagnosis;
   speed: number;
+  /**
+   * Smart AI routing (AI ON only): "skipped" = the rulebook classified the incident,
+   * so no AI call was made; "invoked" = the rulebook was stuck, so the AI was called.
+   * Absent when routing was off.
+   */
+  aiRouting?: "skipped" | "invoked";
 }
 
 export type IncidentStatus = "open" | "investigating" | "mitigating" | "monitoring" | "resolved";

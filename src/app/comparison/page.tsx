@@ -7,10 +7,11 @@ import { useSim } from "@/client/provider";
 import { Button, Card, CardHeader, Empty, Label, Select } from "@/components/ui/primitives";
 import { LabeledBarChart } from "@/components/charts";
 import { AiValueSummary } from "@/components/ai-value";
+import { TokenEfficiency } from "@/components/token-efficiency";
 import { ENTITY_PROFILES } from "@/lib/sim/config";
 import { Chip, SimTag, SourceBadge } from "@/components/status";
 import { FEATURED_GOLDEN, type FeaturedGoldenId } from "@/lib/golden/featured";
-import { diff, ratio, type RunMetrics } from "@/lib/comparison/metrics";
+import { aiArmStatus, diff, ratio, type RunMetrics } from "@/lib/comparison/metrics";
 import type { PairedRunResult, SensitivityRow } from "@/lib/comparison/paired";
 import { CASE_COST_PER_DOWNTIME_MINUTE_USD, computeBusinessValue } from "@/lib/comparison/business";
 import type { BenchmarkAggregate } from "@/lib/comparison/benchmark";
@@ -178,7 +179,7 @@ function Paired() {
         <div className="space-y-4 p-4" data-testid="paired-result">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <b className="text-text">{r.label}</b> <Chip tone="neutral">seed {r.config.seed}</Chip>
-            {r.on.metrics.diagnosisSource !== "llm" ? <Chip tone="warning">AI ON used fallback — AI value not measured</Chip> : <Chip tone="info">AI ON: real LLM responses</Chip>}
+            {aiArmStatus(r.on.metrics) === "skipped" ? <Chip tone="good">AI not needed — the rulebook classified it (0 AI calls)</Chip> : aiArmStatus(r.on.metrics) !== "llm" ? <Chip tone="warning">AI ON used fallback — AI value not measured</Chip> : <Chip tone="info">AI ON: real LLM responses</Chip>}
           </div>
           <MetricsTable off={r.off.metrics} rules={r.rules.metrics} on={r.on.metrics} />
           <Sensitivity rows={r.sensitivity} chosen={r.config.manualTriageSeconds} />
@@ -344,7 +345,10 @@ function ArmStory({ r, k }: { r: PairedRunResult; k: ArmKey }) {
   const truth = r.groundTruth.primaryEntityId;
   const steps: string[] = [];
   if (k === "off") steps.push(`Engineer paged; ${Math.round(m.triageSeconds / 60)} min working the runbook`);
-  if (k === "on" && m.metrics.diagnosisSource !== "llm") steps.push(`⚠️ AI unavailable (${m.metrics.errorCategory?.replace(/_/g, " ") ?? "error"}) — fell back to the rulebook`);
+  const ai = aiArmStatus(m.metrics);
+  if (k === "on" && ai === "skipped") steps.push("🧭 Smart routing: the rulebook was confident, so the AI was not called (0 tokens)");
+  else if (k === "on" && ai === "llm") steps.push(`🧭 Smart routing: the rulebook was stuck, so the AI was called${m.metrics.tokens ? ` (${m.metrics.tokens.toLocaleString("en-US")} tokens)` : ""}`);
+  else if (k === "on" && ai !== "llm") steps.push(`⚠️ AI unavailable (${m.metrics.errorCategory?.replace(/_/g, " ") ?? "error"}) — fell back to the rulebook`);
   if (m.topCause === "insufficient_evidence") steps.push(`${fmtSimTime(m.metrics.timeToDiagnosisS)} — ${k === "on" && m.metrics.diagnosisSource === "llm" ? "AI" : "rulebook"}: “can't tell what's wrong”`);
   else if (m.metrics.timeToDiagnosisS !== null) steps.push(`${fmtSimTime(m.metrics.timeToDiagnosisS)} — ${k === "on" && m.metrics.diagnosisSource === "llm" ? "AI" : "runbook"} names a cause: ${m.topCause?.replace(/_/g, " ")}`);
   if (m.humanPagedAt !== null) steps.push(`${fmtSimTime(m.humanPagedAt)} — human on-call paged to dig deeper`);
@@ -375,13 +379,14 @@ function SlaBody({ cost, r, scenario }: { cost: number; r: PairedRunResult; scen
   const aiExtra = down("rules") - down("on");
   const cf = r.controlsCounterfactual;
   const pb = r.protectedBaseline;
-  const aiLive = r.on.metrics.diagnosisSource === "llm";
+  const aiState = aiArmStatus(r.on.metrics);
+  const aiLive = aiState === "llm" || aiState === "skipped";
   const mystery = scenario === "GS-19";
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-text-2">
         Incident: <b className="text-text">{r.label}</b>
-        {!aiLive ? <Chip tone="warning">AI used the rule-based fallback in this run</Chip> : <Chip tone="info">Real AI responses</Chip>}
+        {aiState === "skipped" ? <Chip tone="good">AI not needed — rulebook was confident (0 AI calls)</Chip> : !aiLive ? <Chip tone="warning">AI used the rule-based fallback in this run</Chip> : <Chip tone="info">Real AI responses</Chip>}
       </div>
       <LabeledBarChart height={150} ariaLabel="SLA penalty per workflow" format={(v) => usd0(v)} data={ARMS.map((k) => ({ label: ARM_STYLE[k].label(r), value: Math.round(pen(down(k))), color: ARM_STYLE[k].color }))} />
       <div className="overflow-x-auto">
@@ -496,6 +501,7 @@ function Benchmark() {
         }
       />
       <div className="p-4">
+        <p className="mb-2 text-xs text-warning-text">⚠️ Token cost: this calls the AI once per test incident (≈19 calls, roughly 85k tokens — about 40% of a free daily AI allowance). Run it deliberately, not before a live demo.</p>
         {sim.benchmark.error ? <p className="mb-2 text-xs text-critical-text">{sim.benchmark.error}</p> : null}
         {!b ? (
           <Empty>{sim.benchmark.loading ? "Running every golden scenario through both investigators (AI calls are sequential to respect provider limits; injected timeout scenarios wait for the real timeout)…" : "Run the benchmark to compare diagnosis quality, evidence grounding, policy rejections, latency and fallback rate."}</Empty>
@@ -506,6 +512,12 @@ function Benchmark() {
               <thead className="text-left text-muted"><tr><th className="px-3 py-2 font-medium">Aggregate</th><th className="px-3 py-2 text-right font-medium">AI OFF (rules)</th><th className="px-3 py-2 text-right font-medium">AI ON</th><th className="px-3 py-2 text-right font-medium">Difference</th></tr></thead>
               <tbody>
                 {A("correctDiagnosisRate", pct, "Correct diagnosis rate")}
+                <tr className="border-t border-border">
+                  <td className="px-3 py-1.5 text-text-2">🧭 Rules first, AI only when stuck</td>
+                  <td colSpan={3} className="px-3 py-1.5 text-right">
+                    {pct(b.routed.correctDiagnosisRate)} correct with {b.routed.aiCalls} of {b.routed.scenarios} AI calls
+                  </td>
+                </tr>
                 {A("appropriateRecommendationRate", pct, "Appropriate recommendation rate")}
                 {A("validRecommendationRate", pct, "Policy-valid recommendation rate")}
                 {A("policyRejections", num, "Policy rejections", "lower")}
@@ -611,6 +623,7 @@ function ComparisonPageInner() {
           <AiValueSummary cost={cost} />
         </div>
       </Card>
+      <TokenEfficiency />
       <SlaPenalty cost={cost} setCost={setCost} scenario={slaScenario} setScenario={setSlaScenario} />
       <details className="rounded-2xl border border-border bg-surface shadow-sm" data-testid="comparison-details">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-text">Detailed results — change the scenario, every metric, sensitivity to the triage assumption, business attribution</summary>

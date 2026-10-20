@@ -25,6 +25,8 @@ const Body = z
     manualTriageMinutes: z.number().min(0).max(30).default(10),
     reinvestigateEverySeconds: z.number().int().min(20).max(300).default(60),
     maxInvestigations: z.number().int().min(1).max(3).default(3),
+    /** Smart AI routing in the AI-assisted arm. */
+    aiRouting: z.boolean().default(false),
   })
   .refine((b) => !!b.goldenId !== !!b.scenarioId, "Provide exactly one of goldenId or scenarioId");
 
@@ -55,7 +57,7 @@ export async function POST(req: Request) {
           maxInvestigations: body.maxInvestigations,
           manualTriageSeconds: Math.round(body.manualTriageMinutes * 60),
         },
-        serverInvestigator(),
+        serverInvestigator({ routing: body.aiRouting }),
       );
     } catch (err) {
       if ((err as Error).message?.startsWith("unknown")) throw new HttpError(422, "validation_error", "Unknown scenario");

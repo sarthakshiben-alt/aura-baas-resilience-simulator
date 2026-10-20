@@ -65,6 +65,8 @@ export class SimController {
   manualTriageMinutes = 10;
   /** Start the investigation automatically when monitoring opens an incident (models the page / AI auto-triage). */
   autoInvestigate = true;
+  /** Smart AI routing (AI ON): the free rulebook goes first; the AI is called only when it can't classify the incident. */
+  aiRouting = true;
   private autoStarted = new Set<string>();
   investigationErrors = new Map<string, string>();
   busyRecs = new Set<string>();
@@ -146,7 +148,7 @@ export class SimController {
   save() {
     this.lastSave = Date.now();
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ session: this.session, sessionId: this.sessionId, log: { ...this.log, tick: this.state.tick }, speed: this.speed, aiMode: this.aiMode, goldenId: this.goldenId, runs: this.interactiveRuns, triage: this.manualTriageMinutes, autoInvestigate: this.autoInvestigate, autoStarted: [...this.autoStarted] }));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ session: this.session, sessionId: this.sessionId, log: { ...this.log, tick: this.state.tick }, speed: this.speed, aiMode: this.aiMode, goldenId: this.goldenId, runs: this.interactiveRuns, triage: this.manualTriageMinutes, autoInvestigate: this.autoInvestigate, aiRouting: this.aiRouting, autoStarted: [...this.autoStarted] }));
     } catch {
       /* storage unavailable: per-viewer convenience only */
     }
@@ -167,6 +169,7 @@ export class SimController {
       this.interactiveRuns = Array.isArray(s.runs) ? s.runs : [];
       if (typeof s.triage === "number") this.manualTriageMinutes = s.triage;
       if (typeof s.autoInvestigate === "boolean") this.autoInvestigate = s.autoInvestigate;
+      if (typeof s.aiRouting === "boolean") this.aiRouting = s.aiRouting;
       if (Array.isArray(s.autoStarted)) this.autoStarted = new Set(s.autoStarted);
       this.rebuild();
       for (const i of this.state.incidents) if (i.status === "resolved") this.resolvedSeen.add(i.id);
@@ -236,6 +239,13 @@ export class SimController {
   }
   setManualTriageMinutes(m: number) {
     this.manualTriageMinutes = Math.max(0, Math.min(30, m));
+    this.save();
+    this.emit();
+  }
+  setAiRouting(v: boolean) {
+    this.aiRouting = v;
+    // Cached comparisons were run under the other setting; drop them so the page re-measures.
+    this.pairedByGolden = {};
     this.save();
     this.emit();
   }
@@ -418,7 +428,7 @@ export class SimController {
     this.investigationErrors.delete(incidentId);
     this.emit();
     try {
-      const r = await api.investigate(session, log, incidentId, mode, mode === "ai_on" ? this.aiFault : null, this.speed, triageMinutes);
+      const r = await api.investigate(session, log, incidentId, mode, mode === "ai_on" ? this.aiFault : null, this.speed, triageMinutes, mode === "ai_on" && this.aiRouting);
       if (this.session !== session) return; // reset while in flight
       const pend = this.pendingInvestigations.get(incidentId);
       if (pend) pend.readyAt = r.signed.entry.applyAt;
@@ -455,7 +465,7 @@ export class SimController {
     this.paired = { ...this.paired, loading: true, error: null };
     this.emit();
     try {
-      const result = await api.paired(session, body);
+      const result = await api.paired(session, { aiRouting: this.aiRouting, ...body });
       this.paired = { loading: false, error: null, result };
       // Free-tier provider budget (Groq: ~8k tokens/min, refilled continuously): wait for what this run spent.
       const used = result.on.metrics.tokens ?? 0;

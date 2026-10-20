@@ -120,6 +120,20 @@ Full details are in `/methodology` and [`docs/DATA_DICTIONARY.md`](docs/DATA_DIC
 - **Interactive runs:** real human decision time is recorded separately from AI latency.
 - **Business value:** `downtime minutes avoided × assumed $/min`. The case's $4,500/min is visible, editable and labelled as an assumption. Benefit is attributed separately to controls, diagnosis speed, recommendation speed, approval time and action effectiveness, and marked *uncertain* where attribution is unclear. Zero denominators show N/A, and no improvement is hard-coded anywhere.
 
+## Token efficiency (inference cost)
+
+Principle: deterministic controls for known failures; AI only for the reasoning that benefits from it.
+
+| Lever | Status | Where to see it |
+|---|---|---|
+| **Smart AI routing** — the free rulebook goes first; the AI is called only when it returns "insufficient evidence" (`routing` in `src/lib/ai/service.ts`, on by default, toggle on the comparison and simulator pages) | **Built** | Diagnosis badge "Rulebook — AI not needed", per-arm story in paired runs, session ledger of AI calls made/avoided/tokens |
+| **Structured summaries, not raw telemetry** — the AI reads a compact context (trends, peaks, ratios, rare events kept) | **Built** (was already the design; now visible) | "⚡ Token footprint" on every diagnosis: measured provider tokens, estimated summary vs raw-metrics vs per-request-log size, and the exact text the AI sees |
+| **Bounded answers** — schema caps (≤4 causes, ≤10 facts, ≤4 actions, ≤300 chars/item) | **Built** (now visible) | Same panel; measured output tokens |
+| Two-tier models (cheap triage model, strong model only when unsure) | Proposed, not built | Comparison page "Proposed next" |
+| Prompt caching of the fixed instructions | Proposed, not built (provider support for this model not verified) | Same |
+
+Evidence, derived from the recorded live benchmark (18 golden scenarios, qwen, 2026-10-19) with no extra AI calls: AI on every incident = 18 calls, 15/18 correct; rulebook only = 0 calls, 17/18; **rules first, AI only when stuck = 2 calls, 17/18** (≈89% fewer calls, no accuracy lost). Caveat: routing ties the rulebook rather than beating it on this set — it fixes GS-18 but sends GS-09 (genuinely "not enough evidence") to an AI that overclaims, which is why a human approves every action. Token estimates are characters ÷ 4; the raw-log comparison assumes ≈25 tokens per request log line.
+
 ## What the results currently show
 
 **Live benchmark (Groq `qwen/qwen3.8-27b`, 2026-10-19)** — full table in [`docs/results/`](docs/results/README.md):

@@ -287,6 +287,13 @@ function Workflow() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
+            <div className="text-sm text-text">🧭 Smart AI routing (AI ON)</div>
+            <div className="text-[11px] text-muted">The free rulebook goes first; the AI is called only when it can&apos;t classify the incident. Saves tokens on routine incidents.</div>
+          </div>
+          <Switch checked={sim.aiRouting} onCheckedChange={(v) => sim.setAiRouting(v)} label="Smart AI routing" />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
             <div className="text-sm text-text">Assumed manual triage (AI OFF)</div>
             <div className="text-[11px] text-muted">Simulated minutes before the runbook diagnosis. An input assumption, not measured data. 0 = runbook automated without AI.</div>
           </div>

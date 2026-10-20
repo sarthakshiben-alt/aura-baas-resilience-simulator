@@ -7,6 +7,7 @@ import type { Incident, InvestigationRecord } from "@/lib/sim/types";
 import { Button, Card, CardHeader, Empty } from "@/components/ui/primitives";
 import { Chip, SourceBadge } from "@/components/status";
 import { fmtMs, fmtSimTime } from "@/lib/utils";
+import { TokenFootprint } from "./token-footprint";
 
 function List({ title, items, tone }: { title: string; items: string[]; tone?: string }) {
   if (!items.length) return null;
@@ -31,7 +32,7 @@ export const WORKFLOW_LABEL: Record<string, string> = {
 export function InvestigationMeta({ iv }: { iv: InvestigationRecord }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
-      <SourceBadge source={iv.source} status={iv.status} />
+      <SourceBadge source={iv.source} status={iv.status} routing={iv.aiRouting} />
       {iv.workflow ? <span className="font-medium text-text-2">{WORKFLOW_LABEL[iv.workflow]}</span> : null}
       {iv.assumedTriageSeconds ? <span title="Disclosed assumption, not measured">assumed manual triage: {Math.round(iv.assumedTriageSeconds / 60)} min (simulated)</span> : null}
       <span>{iv.mode === "ai_on" ? "AI assistance ON" : "AI assistance OFF"}</span>
@@ -98,6 +99,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
         {iv ? (
           <div className="space-y-3" data-testid="diagnosis">
             <InvestigationMeta iv={iv} />
+            <TokenFootprint inc={inc} iv={iv} />
             {iv.errorCategory ? (
               <div className="rounded-xl border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-warning-text">
                 LLM attempt failed — <b>{iv.errorCategory.replace(/_/g, " ")}</b>
@@ -150,7 +152,7 @@ export function DiagnosisPanel({ inc }: { inc: Incident }) {
                 <ul className="mt-1 space-y-1">
                   {inc.investigations.slice(0, -1).map((o) => (
                     <li key={o.id} className="flex flex-wrap items-center gap-2">
-                      <span className="tabular text-muted">{fmtSimTime(o.appliedAt)}</span> <SourceBadge source={o.source} status={o.status} /> {o.diagnosis.summary.slice(0, 140)}
+                      <span className="tabular text-muted">{fmtSimTime(o.appliedAt)}</span> <SourceBadge source={o.source} status={o.status} routing={o.aiRouting} /> {o.diagnosis.summary.slice(0, 140)}
                     </li>
                   ))}
                 </ul>
